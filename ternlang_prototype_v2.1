@@ -1,0 +1,189 @@
+"""
+This file serves as an updated executable prototype (v0.2.1) for Ternlang,
+an experimental architecture for a post-binary programming dialect.
+
+This version integrates the new `MemoryManager` class for persistent,
+structured memory handling, making the memory a first-class, reusable component.
+"""
+
+import time
+import random
+import datetime
+# [NEW]: Import MemoryManager
+from ternlang_memory_manager import MemoryManager
+
+# --- 1. Ternlang Core States ---
+REFRAIN = -1
+TEND    = 0
+AFFIRM  = +1
+
+# --- 2. TernAgent Class ---
+class TernAgent:
+    def __init__(self, name="UnnamedAgent", initial_context="neutral"):
+        self.name = name
+        self.context = initial_context
+        self.last_action = TEND
+        self.mood = 7
+        self.cognition = 500
+        
+        # [NEW]: Initialize the MemoryManager for this agent
+        self.memory_manager = MemoryManager(agent_name=self.name)
+        # The agent's memory entries are now stored in self.memory_manager.entries
+        
+        print(f"[{self.name}] Initialized with context: '{self.context}', Mood: {self.mood}, Cognition: {self.cognition}")
+
+    def observe(self, input_data, other_agent_actions=None):
+        print(f"[{self.name}] Observing: '{input_data}'...")
+        
+        relevance_score = 0.5
+        if "problem" in input_data.lower() or "error" in input_data.lower():
+            self.context = "conflict"
+            relevance_score = 0.9
+        elif "opportunity" in input_data.lower() or "ready" in input_data.lower():
+            self.context = "resonance"
+            relevance_score = 0.8
+        elif "wait" in input_data.lower() or "pause" in input_data.lower():
+            self.context = "ambiguity"
+            relevance_score = 0.3
+        else:
+            self.context = "neutral"
+
+        if other_agent_actions:
+            for action in other_agent_actions:
+                if action == AFFIRM:
+                    relevance_score = min(1.0, relevance_score + 0.1)
+                elif action == REFRAIN:
+                    relevance_score = max(0.0, relevance_score - 0.1)
+
+        self.cognition = min(1000, max(0, self.cognition + int(relevance_score * 100) - 20))
+
+        print(f"[{self.name}] Internal context updated to: '{self.context}', Relevance Score: {relevance_score:.2f}")
+        return self.context, relevance_score
+
+    def decide(self, relevance_score):
+        print(f"[{self.name}] Deciding based on context: '{self.context}' and relevance: {relevance_score:.2f}...")
+
+        decision = TEND
+        if self.context == "resonance" and relevance_score > 0.7:
+            decision = AFFIRM
+        elif self.context == "conflict" and relevance_score > 0.6:
+            decision = REFRAIN
+        elif self.context == "ambiguity" or self.context == "neutral":
+            if len(self.memory_manager.entries) > 0 and self.memory_manager.entries[-1]["Decision"] == self._get_state_name(REFRAIN): # Access via memory_manager
+                decision = TEND
+            else:
+                decision = TEND
+
+        if decision == TEND and relevance_score > 0.5:
+            self.cognition = min(1000, self.cognition + 50)
+        elif decision == AFFIRM or decision == REFRAIN:
+            self.cognition = max(0, self.cognition - 30)
+
+        print(f"[{self.name}] Decision made: {decision} ({self._get_state_name(decision)})")
+        return decision
+
+    def execute_action(self, action):
+        self.last_action = action
+
+        if action == AFFIRM:
+            print(f"[{self.name}] ACTION: Engaging and proceeding!")
+            self.mood = min(13, self.mood + 1)
+            self.cognition = max(0, self.cognition - 50)
+        elif action == TEND:
+            print(f"[{self.name}] TENDING: Observing further, adjusting, or waiting.")
+            self.mood = max(1, min(13, self.mood + random.choice([-1, 0, 1])))
+            self.cognition = min(1000, self.cognition + 20)
+        elif action == REFRAIN:
+            print(f"[{self.name}] REFRAIN: Withdrawing, not engaging, or pausing.")
+            self.mood = max(1, self.mood - 1)
+            self.cognition = max(0, self.cognition - 20)
+        else:
+            print(f"[{self.name}] WARNING: Unknown action state received: {action}")
+
+        print(f"[{self.name}] Current Mood: {self.mood}, Current Cognition: {self.cognition}")
+
+    def run_cycle(self, input_data, other_agent_actions=None):
+        print(f"\n--- [{self.name}] Starting New Cycle ---")
+        current_context, relevance_score = self.observe(input_data, other_agent_actions)
+        decision = self.decide(relevance_score)
+        self.execute_action(decision)
+
+        # [NEW]: Add entry to MemoryManager
+        self.memory_manager.add_entry(
+            input_data=input_data,
+            context=current_context,
+            decision=decision,
+            mood=self.mood,
+            cognition=self.cognition,
+            impact=random.randint(1,13), # Placeholder for impact
+            Summary=f"Agent completed cycle with decision: {self._get_state_name(decision)}.",
+            # Other fields can be added here dynamically based on context, e.g.:
+            # Flags_Reminders=["High Relevance"] if relevance_score > 0.8 else [],
+            # Lessons_Learned=["Learned to be cautious"] if decision == REFRAIN else [],
+        )
+
+        print(f"--- [{self.name}] Cycle Complete ---")
+        return decision
+
+    def _get_state_name(self, state_value):
+        if state_value == REFRAIN:
+            return "REFRAIN"
+        elif state_value == TEND:
+            return "TEND"
+        elif state_value == AFFIRM:
+            return "AFFIRM"
+        else:
+            return "UNKNOWN"
+
+# --- 3. Simulation / Example Usage (unchanged for base prototype) ---
+def simulate_ternlang_swarm(num_cycles=5, num_agents=3):
+    print("\n--- Ternlang Swarm Agent Simulation Started ---")
+    agents = [TernAgent(name=f"TernBot-{i+1}") for i in range(num_agents)]
+
+    example_inputs = [
+        "System status: All green. Opportunity for deployment.",
+        "Warning: Database connection unstable. Please wait.",
+        "Critical error: Unauthorized access attempt detected!",
+        "Data stream looks good. Ready for processing.",
+        "Network latency increasing. Observe and adjust.",
+        "All systems nominal. Proceed with operation.",
+        "Unexpected input received. Pause for re-evaluation.",
+        "Resource contention detected. Refrain from new tasks."
+    ]
+
+    last_cycle_actions = {agent.name: TEND for agent in agents}
+
+    for i in range(num_cycles):
+        print(f"\n===== SIMULATION CYCLE {i+1}/{num_cycles} =====")
+        current_input = random.choice(example_inputs)
+        
+        current_cycle_actions = {} 
+
+        for agent in agents:
+            other_actions = [
+                action for name, action in last_cycle_actions.items() 
+                if name != agent.name
+            ]
+            
+            action_taken = agent.run_cycle(current_input, other_agent_actions=other_actions)
+            current_cycle_actions[agent.name] = action_taken
+            time.sleep(0.5)
+
+        last_cycle_actions = current_cycle_actions
+
+    print("\n--- Ternlang Swarm Agent Simulation Finished ---")
+
+    # [NEW]: Save memory for all agents at the end of simulation
+    for agent in agents:
+        agent.memory_manager.save_to_file()
+
+    # Optional: Print memory of each agent at the end
+    print("\n--- Agent Memory Snapshots ---")
+    for agent in agents:
+        print(f"\n[{agent.name}] Memory (last 3 entries):")
+        for entry in agent.memory_manager.get_recent_entries(3): # Access via memory_manager
+            print(f"  - ID: {entry.get('ID', 'N/A')} | Decision: {entry.get('Decision', 'N/A')} | Summary: {entry.get('Summary', 'N/A')}")
+
+
+if __name__ == "__main__":
+    simulate_ternlang_swarm(num_cycles=8, num_agents=3)
