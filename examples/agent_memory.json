@@ -1,0 +1,319 @@
+[
+# examples/example_temperature_spike.py
+# Demonstrates a TernAgent experiencing a sudden "temperature spike"
+# (like an emotional event or outside trigger) that causes mood/cognition overload,
+# potentially bypassing normal decision logic. Agent reflects on "heat regret" or validation.
+# [UPDATED]: Memory logging now uses a generic, broadly applicable structured format
+# for all AI agents, incorporating core agent states and qualitative insights.
+# [NEW]: Implements persistent memory saving to and loading from 'agent_memory.json'.
+
+# Assuming ternlang_prototype.py is in the same parent directory
+from ternlang_prototype import REFRAIN, TEND, AFFIRM, TernAgent
+import random
+import time
+import datetime
+import uuid
+import json # [NEW] For JSON file operations
+import os   # [NEW] For checking file existence
+
+print("--- Ternlang Example: Temperature Spike Agent ---")
+
+# [NEW]: Define the path for the persistent memory file
+MEMORY_FILE_PATH = "agent_memory.json" 
+
+class SpikeAgent(TernAgent):
+    """
+    A TernAgent that models sudden internal "temperature spikes" caused by
+    external triggers. These spikes can lead to mood jumps, cognition overload,
+    and a bypass of normal decision logic, forcing immediate AFFIRM or REFRAIN.
+    After the action, the agent reflects and logs "heat regret" or validation.
+    """
+    def __init__(self, name="SpikeResponder", initial_mood=7):
+        super().__init__(name, initial_context="calm")
+        self.mood = initial_mood
+        self.cognition = 500
+        self.is_spiking = False
+        self.spike_intensity = 0.0
+        self.temperature_spike_threshold = 0.7
+        self.last_spike_action = None
+        
+        # [NEW]: Agent's memory will be loaded here at startup
+        self.memory = [] # This will be populated by load_agent_memory
+        
+        print(f"[{self.name}] Initialized with Mood: {self.mood}, Cognition: {self.cognition}")
+
+    def observe(self, input_data, other_agent_actions=None):
+        """
+        Observes input and checks for triggers that cause a temperature spike.
+        """
+        print(f"[{self.name}] Observing input: '{input_data}'")
+        
+        current_context = "neutral_observation"
+        relevance_score = 0.5
+
+        if "critical threat" in input_data.lower() or "emergency" in input_data.lower():
+            self.is_spiking = True
+            self.spike_intensity = random.uniform(0.75, 1.0)
+            current_context = "spike_triggered_critical"
+            relevance_score = 0.9
+            print(f"[{self.name}] --- TEMPERATURE SPIKE TRIGGERED! Intensity: {self.spike_intensity:.2f} ---")
+            self.mood = min(13, self.mood + random.randint(3, 5))
+            self.cognition = min(1000, self.cognition + random.randint(150, 250))
+        elif "insult" in input_data.lower() or "provoke" in input_data.lower():
+            self.is_spiking = True
+            self.spike_intensity = random.uniform(0.6, 0.8)
+            current_context = "spike_triggered_emotional"
+            relevance_score = 0.7
+            print(f"[{self.name}] --- TEMPERATURE SPIKE TRIGGERED! Intensity: {self.spike_intensity:.2f} ---")
+            self.mood = max(1, self.mood - random.randint(3, 5))
+            self.cognition = min(1000, self.cognition + random.randint(100, 200))
+        else:
+            self.is_spiking = False
+            self.spike_intensity = 0.0
+            if "clear" in input_data.lower():
+                current_context = "clear_path"
+                relevance_score = 0.8
+            elif "ambiguous" in input_data.lower():
+                current_context = "ambiguous_input"
+                relevance_score = 0.4
+            else:
+                current_context = "general_observation"
+                relevance_score = 0.5
+
+        self.context = current_context
+        print(f"[{self.name}] Context: '{self.context}', Mood: {self.mood}, Cognition: {self.cognition}")
+        return self.context, relevance_score
+
+    def decide(self, relevance_score, other_agent_decision=None):
+        """
+        Decides the action. If in a spike, decision may bypass normal logic.
+        """
+        print(f"[{self.name}] Deciding based on relevance: {relevance_score:.2f}...")
+        
+        if self.is_spiking and self.spike_intensity >= self.temperature_spike_threshold:
+            print(f"[{self.name}] --- SPIKE OVERRIDE! Bypassing normal logic! ---")
+            if "critical" in self.context:
+                decision = AFFIRM
+                print(f"[{self.name}] Forced AFFIRM due to critical spike.")
+            elif "emotional" in self.context:
+                decision = random.choice([AFFIRM, REFRAIN])
+                print(f"[{self.name}] Forced {self._get_state_name(decision)} due to emotional spike.")
+            else:
+                decision = random.choice([AFFIRM, REFRAIN])
+            
+            self.cognition = max(0, self.cognition - 100)
+            self.mood = min(13, max(1, self.mood + random.choice([-1, 1])))
+            
+            return decision
+
+        decision = TEND
+        if relevance_score >= 0.7:
+            decision = AFFIRM
+            print(f"[{self.name}] High relevance. Ready to AFFIRM.")
+        elif relevance_score < 0.3:
+            decision = REFRAIN
+            print(f"[{self.name}] Low relevance. REFRAINING from action.")
+        else:
+            decision = TEND
+            print(f"[{self.name}] Moderate relevance. TENDING for more information.")
+
+        if decision == TEND:
+            self.cognition = min(1000, self.cognition + 50)
+            self.mood = max(1, min(13, self.mood - 1))
+        elif decision == REFRAIN:
+            self.cognition = max(0, self.cognition - 30)
+            self.mood = max(1, self.mood - 2)
+        elif decision == AFFIRM:
+            self.cognition = max(0, self.cognition - 20)
+            self.mood = min(13, self.mood + 1)
+
+        print(f"[{self.name}] Decision: {self._get_state_name(decision)}")
+        return decision
+
+    def execute_action(self, action):
+        """
+        Executes the action. After a spike-driven action, reflects on "heat regret" or validation.
+        """
+        super().execute_action(action)
+        self.last_spike_action = action
+
+        if self.is_spiking and self.spike_intensity >= self.temperature_spike_threshold:
+            print(f"[{self.name}] ACTION: Executing under spike influence.")
+        elif action == AFFIRM:
+            print(f"[{self.name}] ACTION: Proceeding with task.")
+        elif action == TEND:
+            print(f"[{self.name}] TENDING: Observing further, adjusting, or waiting.")
+        elif action == REFRAIN:
+            print(f"[{self.name}] REFRAIN: Halting due to uncertainty.")
+        else:
+            print(f"[{self.name}] WARNING: Unknown action state received: {action}")
+
+    def run_cycle(self, input_data, other_agent_actions=None):
+        """
+        Performs a full Ternlang cycle for a SpikeAgent.
+        Includes post-action reflection on spike events.
+        Memory logging now uses a generic, broadly applicable structured format.
+        """
+        print(f"\n--- [{self.name}] Starting New Cycle ---")
+        current_context, relevance_score = self.observe(input_data, other_agent_actions)
+        decision = self.decide(relevance_score)
+        self.execute_action(decision)
+
+        if self.is_spiking and self.spike_intensity >= self.temperature_spike_threshold:
+            self._reflect_on_spike_action(decision)
+            self.is_spiking = False
+
+        now = datetime.datetime.now()
+        
+        memory_entry = {
+            "ID": str(uuid.uuid4()),
+            "Timestamp": now.isoformat(),
+            "Weekday": now.strftime("%A"),
+            "AgentName": self.name,
+            "Input": input_data,
+            "Context": current_context,
+            "Decision": self._get_state_name(decision),
+            "Mood Barometer (1–13)": self.mood,
+            "Cognition Barometer (0-1000)": self.cognition,
+            "Impact Barometer (1–13)": random.randint(1, 13),
+            
+            "Summary": "Agent processed input and made a decision.",
+            "Flags/Reminders": [],
+            "Milestone Events": [],
+            "Lessons Learned": [],
+            "Approach Adjustments": [],
+            "Pending Action Items": [],
+            "Timestamp Notes": "",
+
+            "IsSpiking": self.is_spiking,
+            "SpikeIntensity": round(self.spike_intensity, 2),
+            "LastSpikeAction": self._get_state_name(self.last_spike_action) if self.last_spike_action else "None"
+        }
+
+        if "critical" in current_context:
+            memory_entry["Summary"] = "Critical event detected. Agent reacted under spike influence."
+            memory_entry["Flags/Reminders"].append("Critical event handled.")
+        if "emotional" in current_context:
+            memory_entry["Summary"] = "Emotional trigger detected. Agent reacted impulsively."
+            memory_entry["Flags/Reminders"].append("Emotional response observed.")
+        
+        if "post_spike_regret" in self.context: 
+            memory_entry["Lessons Learned"].append("Experienced 'heat regret' from impulsive action.")
+            memory_entry["Approach Adjustments"].append("Review impulse control mechanisms.")
+        elif "post_spike_validation" in self.context:
+            memory_entry["Lessons Learned"].append("Action during spike was validated.")
+            memory_entry["Approach Adjustments"].append("Validate rapid response protocols.")
+        
+        if decision == REFRAIN and "ambiguous" in input_data.lower():
+            memory_entry["Pending Action Items"].append("Seek clarification for ambiguous input.")
+            memory_entry["Summary"] = "Agent refrained due to ambiguity, pending clarification."
+
+
+        self.memory.append(memory_entry)
+
+        print(f"--- [{self.name}] Cycle Complete ---")
+        return decision
+
+    def _reflect_on_spike_action(self, action_taken):
+        """
+        Agent reflects on the action taken during a temperature spike.
+        Determines "heat regret" or "validation."
+        """
+        print(f"[{self.name}]   (Reflection) Reflecting on spike-driven action: {self._get_state_name(action_taken)}...")
+        
+        regret_or_validation = random.uniform(-1.0, 1.0)
+
+        if "critical" in self.context:
+            if action_taken == AFFIRM and regret_or_validation > 0:
+                print(f"[{self.name}]     (Reflection) Action was AFFIRM. Outcome positive. Validation! (+{regret_or_validation:.2f})")
+                self.mood = min(13, self.mood + 2)
+                self.context = "post_spike_validation"
+            else:
+                print(f"[{self.name}]     (Reflection) Action was {self._get_state_name(action_taken)}. Outcome negative. Heat regret! ({regret_or_validation:.2f})")
+                self.mood = max(1, self.mood - 3)
+                self.context = "post_spike_regret"
+        elif "emotional" in self.context:
+            if action_taken == REFRAIN and regret_or_validation > 0:
+                print(f"[{self.name}]     (Reflection) Action was REFRAIN. Outcome positive. Validation! (+{regret_or_validation:.2f})")
+                self.mood = min(13, self.mood + 1)
+                self.context = "post_spike_validation"
+            else:
+                print(f"[{self.name}]     (Reflection) Action was {self._get_state_name(action_taken)}. Outcome negative. Heat regret! ({regret_or_validation:.2f})")
+                self.mood = max(1, self.mood - 2)
+                self.context = "post_spike_regret"
+
+        self.cognition = max(0, self.cognition - 50)
+        time.sleep(1.0)
+        print(f"[{self.name}]   (Reflection) Mood after reflection: {self.mood}, Cognition: {self.cognition}")
+
+# --- NEW: Persistence Functions ---
+def save_agent_memory(agent_instance):
+    """Saves the agent's memory to a JSON file."""
+    try:
+        # Ensure the directory exists if MEMORY_FILE_PATH includes a directory
+        os.makedirs(os.path.dirname(MEMORY_FILE_PATH), exist_ok=True)
+        with open(MEMORY_FILE_PATH, 'w') as f:
+            json.dump(agent_instance.memory, f, indent=4)
+        print(f"\n--- Memory saved to {MEMORY_FILE_PATH} ---")
+    except Exception as e:
+        print(f"Error saving memory: {e}")
+
+def load_agent_memory(agent_instance):
+    """Loads memory from a JSON file into the agent instance."""
+    if os.path.exists(MEMORY_FILE_PATH):
+        try:
+            with open(MEMORY_FILE_PATH, 'r') as f:
+                agent_instance.memory = json.load(f)
+            print(f"--- Memory loaded from {MEMORY_FILE_PATH}. {len(agent_instance.memory)} entries found. ---")
+        except json.JSONDecodeError:
+            print(f"Memory file {MEMORY_FILE_PATH} is corrupted or empty. Starting with fresh memory.")
+            agent_instance.memory = []
+        except Exception as e:
+            print(f"Error loading memory: {e}")
+    else:
+        print(f"No existing memory file found at {MEMORY_FILE_PATH}. Starting with fresh memory.")
+        agent_instance.memory = []
+
+
+# --- Simulation ---
+def simulate_temperature_spike_agent(num_cycles=8):
+    """
+    Runs a simulation of a SpikeAgent, demonstrating temperature spike events.
+    Includes loading and saving of persistent memory.
+    """
+    print("\n--- Ternlang Temperature Spike Agent Simulation Started ---")
+    
+    spike_agent = SpikeAgent(name="EmotionalResponder", initial_mood=7)
+    load_agent_memory(spike_agent) # [NEW]: Load memory at the start of simulation
+
+    scenarios = [
+        "Input: Routine system check. All seems normal.",
+        "Input: Ambiguous data, needs clarification.",
+        "Input: CRITICAL THREAT DETECTED! IMMEDIATE ACTION REQUIRED!",
+        "Input: User feedback: 'Your last action was an INSULT!'",
+        "Input: Clear directive: Stand down.",
+        "Input: EMERGENCY! SYSTEM OVERLOAD IMMINENT! (Critical spike)",
+        "Input: Another vague report, still no clarity.",
+        "Input: 'You PROVOKED me with that last response!' (Emotional spike)",
+    ]
+
+    for i in range(num_cycles):
+        print(f"\n===== SIMULATION CYCLE {i+1}/{len(scenarios)} =====")
+        # Use modulo to cycle through scenarios if num_cycles > len(scenarios)
+        current_input = scenarios[i % len(scenarios)] 
+        spike_agent.run_cycle(current_input)
+        time.sleep(2)
+
+    print("\n--- Ternlang Temperature Spike Agent Simulation Finished ---")
+
+    save_agent_memory(spike_agent) # [NEW]: Save memory at the end of simulation
+
+    print("\n--- Sample of Agent Memory (Structured) ---")
+    for entry in spike_agent.memory[-min(3, len(spike_agent.memory)):]: # Print last 3 entries or fewer
+        for key, value in entry.items():
+            print(f"  {key}: {value}")
+        print("  ---")
+
+    print("\n--- Final Agent State ---")
+    print(f"[{spike_agent.name}] Final Mood: {spike_agent.mood}, Cognition: {spike_agent.cognition}, Last Action: {spike_agent._get_state_name(spike_agent.last_action)}")
+]
