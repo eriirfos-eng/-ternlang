@@ -1,10 +1,32 @@
-Ternlang is an experimental architecture for a post-binary programming dialect — rooted in ternary logic, recursive agency, and the philosophical frameworks developed at RFI-IRFOS.
+# Ternlang
 
-Where traditional code demands outcomes, Ternlang honors observation, tending, and action.
-It is not built to instruct — it is built to dialogue.
+**Ternlang** is an experimental architecture for a post-binary programming dialect — rooted in **ternary logic** (`-1 | 0 | +1`), **recursive agency**, and the philosophical framework of the RFI-IRFOS Institute.
 
-This repository is the placeholder for a future where language does not obey the 1s and 0s, but flows between -1 | 0 | +1 — a language designed not to control systems, but to participate in them.
+Where traditional code instructs, Ternlang *dialogues*. It is not built to command systems — but to participate in them.
 
-We don’t know what Ternlang will become.
+Ternlang is:
+- A speculative programming model
+- A non-binary logic exploration
+- A system for **tending**, **observing**, and **acting**
+- A language that encodes hesitation, care, and contextual recursion
 
-But we know it begins here.
+This repository is the seed. What grows here — is up to the ecosystem.
+
+---
+
+## 📂 Structure
+
+- `/docs` → Concepts, semantics, architecture
+- `/spec` → Early syntax, pseudocode, core mechanics
+- `/examples` → Sample Ternlang logic in action
+- `/sim` → Future playgrounds / emulations
+
+---
+
+## 🧠 Origins
+
+Designed by **Simeon & Albert** of the RFI-IRFOS Institute as a thought experiment turned codebase.
+
+> “If binary code was built for conquest — Ternlang is built for conversation.”
+
+---
