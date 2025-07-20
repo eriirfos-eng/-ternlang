@@ -2,18 +2,12 @@
 
 The **Ternlang** repository’s README introduces the project as *“an experimental architecture for a post-binary programming dialect”* rooted in **ternary logic** (using values `-1`, `0`, `+1`), **recursive agency**, and the RFI-IRFOS Institute’s philosophical framework. In essence, Ternlang is a speculative programming model exploring non-binary logic and aiming to encode notions of **tending**, **observing**, and **acting** in software. Uniquely, it aspires to incorporate **hesitation** and **care** into programming constructs via *contextual recursion*, reflecting a shift in ethos – *“If binary code was built for conquest — Ternlang is built for conversation.”* This motto from the creators (Simeon & Albert of RFI-IRFOS) underscores the language’s emphasis on dialogue and restraint rather than the traditional decisive action of binary logic systems.
 
-**Project Scope:** The README makes clear that Ternlang is at an embryonic stage – *“This repository is the seed. What grows here — is up to the ecosystem.”*. In other words, the codebase is a starting point meant to evolve with community input and research, rather than a complete, ready-to-use language.
-
-**Repository Structure:** The README outlines the repository layout, which is organized into several top-level directories for different aspects of the project:
+This README outlines the repository layout, which is organized into several top-level directories for different aspects of the project:
 
 * **`/docs`:** Documentation of concepts, semantics, and architecture (high-level ideas and design philosophies).
 * **`/spec`:** The language specification drafts, including early syntax proposals, pseudocode, and core mechanics.
 * **`/examples`:** Sample Ternlang logic in action (illustrative examples demonstrating how one might write code or logical constructs in Ternlang).
 * **`/sim`:** Planned simulation or playground space for emulations of Ternlang (for future interactive experiments).
-
-*(At present, the **docs** and **spec** directories contain the primary content, as detailed below, while **examples** and **sim** are noted for future expansion.)*
-
-**Origins:** The README credits the design of Ternlang to **Simeon & Albert** of the RFI-IRFOS Institute, framing it as a “thought experiment turned codebase”. This academic/research origin explains the language’s unconventional goals. The inclusion of terms like *“contextual recursion”* and the focus on *ternary* truth values reflect influences from philosophical and ethical considerations, suggesting that Ternlang’s creation is driven by questioning the fundamentals of computation and exploring new paradigms rather than immediate practical application.
 
 ## docs/intent.md – Purpose and Vision
 
