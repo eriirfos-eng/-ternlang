@@ -1,8 +1,3 @@
-# ternlang_prototype.py
-# Version: 0.2.0
-# Author: Simeon & Gemini (AI Assistant)
-# License: MIT (or choose your preferred open-source license for the repo)
-
 """
 This file serves as an updated executable prototype (v0.2.0) for Ternlang,
 an experimental architecture for a post-binary programming dialect.
