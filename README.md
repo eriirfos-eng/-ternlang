@@ -2,8 +2,6 @@
 
 **Ternlang** is an experimental architecture for a post-binary programming dialect — rooted in **ternary logic** (`-1 | 0 | +1`), **recursive agency**, and the philosophical framework of the RFI-IRFOS Institute.
 
-Where traditional code instructs, Ternlang *dialogues*. It is not built to command systems — but to participate in them.
-
 Ternlang is:
 - A speculative programming model
 - A non-binary logic exploration
