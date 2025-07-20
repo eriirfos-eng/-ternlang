@@ -1,0 +1,73 @@
+import json
+import os # For checking if file exists
+
+MEMORY_FILE_PATH = "agent_memory.json" # Define where the memory will be stored
+
+# --- Saving Memory ---
+def save_agent_memory(agent_instance):
+    """Saves the agent's memory to a JSON file."""
+    try:
+        with open(MEMORY_FILE_PATH, 'w') as f:
+            json.dump(agent_instance.memory, f, indent=4)
+        print(f"Memory saved to {MEMORY_FILE_PATH}")
+    except Exception as e:
+        print(f"Error saving memory: {e}")
+
+# --- Loading Memory ---
+def load_agent_memory(agent_instance):
+    """Loads memory from a JSON file into the agent instance."""
+    if os.path.exists(MEMORY_FILE_PATH):
+        try:
+            with open(MEMORY_FILE_PATH, 'r') as f:
+                agent_instance.memory = json.load(f)
+            print(f"Memory loaded from {MEMORY_FILE_PATH}. {len(agent_instance.memory)} entries found.")
+        except json.JSONDecodeError:
+            print(f"Memory file {MEMORY_FILE_PATH} is corrupted or empty. Starting with fresh memory.")
+            agent_instance.memory = []
+        except Exception as e:
+            print(f"Error loading memory: {e}")
+    else:
+        print(f"No existing memory file found at {MEMORY_FILE_PATH}. Starting with fresh memory.")
+        agent_instance.memory = []
+
+# --- Conceptual Retrieval Function (Keyword-based for simplicity) ---
+def retrieve_from_memory(agent_instance, query_keywords, top_n=3):
+    """
+    Simulates retrieving relevant past experiences from agent's memory.
+    In a real RAG system, this would use semantic embeddings.
+    """
+    relevant_memories = []
+    query_set = set(query_keywords)
+
+    for entry in agent_instance.memory:
+        entry_text = entry.get("Input", "") + " " + entry.get("Summary", "")
+        entry_keywords = set(entry_text.lower().split())
+        
+        # Simple overlap score
+        match_score = len(query_set.intersection(entry_keywords)) / len(query_set.union(entry_keywords))
+        
+        if match_score > 0.1: # Threshold for basic relevance
+            relevant_memories.append((match_score, entry))
+    
+    # Sort by match score and return top N
+    relevant_memories.sort(key=lambda x: x[0], reverse=True)
+    
+    print(f"Retrieved {len(relevant_memories)} relevant memories for query: {query_keywords}")
+    return [mem[1] for mem in relevant_memories[:top_n]]
+
+# --- How you'd integrate this into your simulation ---
+if __name__ == "__main__":
+    spike_agent = SpikeAgent(name="EmotionalResponder", initial_mood=7)
+    load_agent_memory(spike_agent) # Load memory at startup
+
+    # ... run your simulation cycles ...
+
+    save_agent_memory(spike_agent) # Save memory at shutdown
+
+    # Example of using retrieval (e.g., after an ambiguous input)
+    # retrieved_info = retrieve_from_memory(spike_agent, ["unclear", "directive"])
+    # if retrieved_info:
+    #     print("Agent found past similar experiences:")
+    #     for item in retrieved_info:
+    #         print(f"  - ID: {item['ID']}, Decision: {item['Decision']}, Summary: {item['Summary']}")
+    #     # Agent would then use this retrieved_info to influence its next decide() call
