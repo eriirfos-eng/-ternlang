@@ -23,12 +23,16 @@ class AmbiguityAgent(TernAgent):
         self.reasoning_steps_taken = 0
         self.max_reasoning_steps = 3 # How many times it will TEND for internal reasoning
         self.human_intervention_threshold = 0.2 # If clarity drops below this after max reasoning, ask human
-        print(f"[{self.name}] Initial clarity: {self.clarity_score:.2f}")
+        # [IMPROVEMENT 1]: Initialize mood and cognition fields
+        self.mood = 7  # Neutral baseline on 1–13
+        self.cognition = 500  # Middle of the 0–1000 range
+        print(f"[{self.name}] Initial clarity: {self.clarity_score:.2f}, Mood: {self.mood}, Cognition: {self.cognition}")
 
     def observe(self, input_data, other_agent_actions=None):
         """
         Observes input and calculates an initial clarity score.
         Updates context based on this score.
+        [IMPROVEMENT 3]: Now handles other_agent_actions to influence clarity.
         """
         print(f"[{self.name}] Observing input for clarity: '{input_data}'")
         
@@ -49,6 +53,19 @@ class AmbiguityAgent(TernAgent):
             self.clarity_score = random.uniform(0.4, 0.7) # Default/unknown clarity
             current_context = "evaluating_situation"
 
+        # [IMPROVEMENT 3]: Incorporate influence from other agents' actions
+        if other_agent_actions:
+            for action in other_agent_actions:
+                if action == AFFIRM:
+                    # If others affirmed, it might increase perceived clarity slightly
+                    self.clarity_score = min(1.0, self.clarity_score + 0.05)
+                    print(f"[{self.name}]   (Influence) Other agent AFFIRMED, clarity slightly increased to {self.clarity_score:.2f}")
+                elif action == REFRAIN:
+                    # If others refrained, it might increase perceived ambiguity
+                    self.clarity_score = max(0.0, self.clarity_score - 0.05)
+                    print(f"[{self.name}]   (Influence) Other agent REFRAINED, clarity slightly decreased to {self.clarity_score:.2f}")
+                # TEND actions from others might reinforce current TEND or be neutral
+
         self.context = current_context
         # Use clarity_score as relevance_score for decision making
         print(f"[{self.name}] Context: '{self.context}', Clarity Score: {self.clarity_score:.2f}")
@@ -58,6 +75,7 @@ class AmbiguityAgent(TernAgent):
         """
         Decides the action based on the current clarity score.
         Prioritizes TEND for clarification, or REFRAIN/Human-in-the-Loop if stuck.
+        [IMPROVEMENT 2]: Added logging for ambiguity lock-ins.
         """
         print(f"[{self.name}] Deciding based on clarity: {clarity_score:.2f}...")
         decision = TEND # Default to TEND if no strong signal
@@ -70,10 +88,13 @@ class AmbiguityAgent(TernAgent):
             print(f"[{self.name}] Ambiguity detected. TENDING for internal reasoning/clarification.")
         else: # clarity_score < 0.7 AND max_reasoning_steps reached
             print(f"[{self.name}] Max reasoning steps reached for persistent ambiguity.")
-            if clarity_score < self.human_intervention_threshold:
+            # [IMPROVEMENT 2]: Log ambiguity lock-in
+            if self.clarity_score < self.human_intervention_threshold:
+                print(f"[{self.name}] --- AMBIGUITY LOCK-IN DETECTED: Clarity {self.clarity_score:.2f} below threshold {self.human_intervention_threshold:.2f} after max reasoning. ---")
                 decision = REFRAIN # Too ambiguous, need human
                 print(f"[{self.name}] Clarity too low. REFRAINING, human intervention required.")
             else:
+                print(f"[{self.name}] --- PERSISTENT AMBIGUITY: Clarity {self.clarity_score:.2f} still moderate after max reasoning. ---")
                 decision = TEND # Still some hope, TEND one more time or with external clarification
                 print(f"[{self.name}] Still ambiguous but not critical. TENDING for external clarification.")
         
