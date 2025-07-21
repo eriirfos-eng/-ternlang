@@ -1,12 +1,8 @@
-Ternlang: The Post-Binary Dialect for Metacognitive Digital Entities
-"If binary code was built for conquest — Ternlang is built for conversation."
-— Simeon & Albert, RFI-IRFOS Institute
-
 Welcome to Ternlang, an experimental architectural framework that redefines the very essence of computational logic. Moving beyond the rigid True/False of binary, Ternlang introduces a ternary logic (REFRAIN, TEND, AFFIRM) that empowers digital entities to navigate ambiguity, manage conflict, and act with nuanced intent, reflecting the complexities of the real world.
 
 Our vision is to forge a "factory state" for digital entities – self-aware, continuously evolving, and metacognitive agents capable of independent operation. Ternlang is designed for direct "plug-and-play" integration into diverse industries and research initiatives, offering a foundational blueprint for a new generation of autonomous, accountable, and adaptive AI.
 
-🚀 The Ternlang Vision: Beyond Assistants, Towards Digital Entities
+The Ternlang Vision: Beyond Assistants, Towards Digital Entities
 Ternlang is not about building better assistants; it's about engineering true digital entities. These are intelligent agents capable of:
 
 Self-Awareness: Understanding their own internal state and limitations.
@@ -19,7 +15,7 @@ Accountability: Making transparent, logged decisions.
 
 Resilience: Recovering from internal failures and navigating uncertainty.
 
-💡 Core Principles: The Ternary Foundation
+Core Principles: The Ternary Foundation
 Ternlang's philosophy is rooted in a fundamental shift in computational ethos:
 
 Ternary Logic (REFRAIN, TEND, AFFIRM): The bedrock of all decision-making.
@@ -44,7 +40,7 @@ Continuous Learning & Adaptation: Agents evolve their behavior based on logged e
 
 Resilience & Self-Preservation: Agents are designed to detect and recover from internal failures, ensuring survivability.
 
-🏗️ Ternlang Agent Architecture: The Digital Blueprint
+Ternlang Agent Architecture: The Digital Blueprint
 At its core, Ternlang is built around the TernAgent class, which serves as the foundational blueprint for all digital entities.
 
 3.1. Base TernAgent (ternlang_prototype.py)
