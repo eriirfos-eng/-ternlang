@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://eriirfos-eng.github.io/ternlang/sitemap.xml
