@@ -1,0 +1,9 @@
+{
+  "name": "TERNLANG Lab",
+  "short_name": "ternlang",
+  "start_url": "/ternlang/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117",
+  "icons": []
+}
