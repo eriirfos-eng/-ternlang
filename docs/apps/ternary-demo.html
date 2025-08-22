@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OIUIDI · Ternary Core Demo</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    .card{background:rgba(22,27,34,.6);backdrop-filter:blur(8px)}
+    .pill{border-radius:9999px;padding:.25rem .5rem;display:inline-flex;align-items:center;gap:.35rem;font-weight:700}
+    .mono{font-variant-numeric:tabular-nums}
+    input[type="range"]{width:100%}
+  </style>
+  <!-- Ternary core (serve this from your repo pages) -->
+  <script src="./ternary-core.js"></script>
+</head>
+<body class="bg-[#0d1117] text-[#c9d1d9] min-h-screen">
+  <main class="max-w-6xl mx-auto p-4 md:p-8 grid lg:grid-cols-2 gap-6">
+    <section class="card rounded-2xl border border-[#30363d] p-6">
+      <h1 class="text-2xl md:text-3xl font-extrabold">Ternary Logic Core · Live Demo</h1>
+      <p class="text-sm text-gray-400 mb-4">(a ⊕ b ⊕ c)<sup>t̂</sup> — score → decide → flag with temporal hysteresis.</p>
+
+      <div class="grid md:grid-cols-3 gap-4">
+        <!-- Inputs a,b,c -->
+        <div class="rounded-xl border border-[#30363d] p-4">
+          <h2 class="font-semibold mb-2">input a</h2>
+          <input id="a" type="range" min="-1" max="1" value="0" step="0.01">
+          <div class="text-xs text-gray-400 mt-2">value: <span id="aVal" class="mono">0.00</span></div>
+          <label class="text-xs text-gray-400">weight
+            <input id="aw" type="range" min="0" max="1" value="1" step="0.01">
+          </label>
+          <div class="text-xs text-gray-400">w: <span id="awVal" class="mono">1.00</span></div>
+        </div>
+        <div class="rounded-xl border border-[#30363d] p-4">
+          <h2 class="font-semibold mb-2">input b</h2>
+          <input id="b" type="range" min="-1" max="1" value="0" step="0.01">
+          <div class="text-xs text-gray-400 mt-2">value: <span id="bVal" class="mono">0.00</span></div>
+          <label class="text-xs text-gray-400">weight
+            <input id="bw" type="range" min="0" max="1" value="1" step="0.01">
+          </label>
+          <div class="text-xs text-gray-400">w: <span id="bwVal" class="mono">1.00</span></div>
+        </div>
+        <div class="rounded-xl border border-[#30363d] p-4">
+          <h2 class="font-semibold mb-2">input c</h2>
+          <input id="c" type="range" min="-1" max="1" value="0" step="0.01">
+          <div class="text-xs text-gray-400 mt-2">value: <span id="cVal" class="mono">0.00</span></div>
+          <label class="text-xs text-gray-400">weight
+            <input id="cw" type="range" min="0" max="1" value="1" step="0.01">
+          </label>
+          <div class="text-xs text-gray-400">w: <span id="cwVal" class="mono">1.00</span></div>
+        </div>
+      </div>
+
+      <div class="grid md:grid-cols-3 gap-4 mt-4">
+        <!-- thresholds & t-hat controls -->
+        <div class="rounded-xl border border-[#30363d] p-4">
+          <h3 class="font-semibold mb-2">thresholds</h3>
+          <label class="text-xs text-gray-400">neg
+            <input id="thNeg" type="range" min="-1" max="0" value="-0.25" step="0.01">
+          </label>
+          <div class="text-xs text-gray-400">neg: <span id="thNegVal" class="mono">-0.25</span></div>
+          <label class="text-xs text-gray-400">pos
+            <input id="thPos" type="range" min="0" max="1" value="0.25" step="0.01">
+          </label>
+          <div class="text-xs text-gray-400">pos: <span id="thPosVal" class="mono">0.25</span></div>
+        </div>
+        <div class="rounded-xl border border-[#30363d] p-4">
+          <h3 class="font-semibold mb-2">t̂ dynamics</h3>
+          <label class="text-xs text-gray-400">alpha (responsiveness)
+            <input id="alpha" type="range" min="0" max="1" value="0.25" step="0.01">
+          </label>
+          <div class="text-xs text-gray-400">α: <span id="alphaVal" class="mono">0.25</span></div>
+          <label class="text-xs text-gray-400">inertia (stickiness)
+            <input id="inertia" type="range" min="0" max="1" value="0.6" step="0.01">
+          </label>
+          <div class="text-xs text-gray-400">ι: <span id="inertiaVal" class="mono">0.60</span></div>
+        </div>
+        <div class="rounded-xl border border-[#30363d] p-4 flex flex-col justify-between">
+          <div>
+            <h3 class="font-semibold mb-2">mode</h3>
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer">
+              <input id="stream" type="checkbox" class="accent-[#58a6ff]"> stream reduce (t̂)
+            </label>
+            <label class="inline-flex items-center gap-2 text-sm cursor-pointer mt-2">
+              <input id="autopulse" type="checkbox" class="accent-[#58a6ff]"> autopulse demo
+            </label>
+          </div>
+          <button id="reset" class="mt-4 px-3 py-2 rounded-lg bg-[#238636] hover:bg-[#2ea043] text-white text-sm font-semibold">reset state</button>
+        </div>
+      </div>
+
+      <div class="mt-6 rounded-2xl border border-[#30363d] p-6 flex items-center justify-between">
+        <div>
+          <div class="text-sm text-gray-300">scalar</div>
+          <div id="scalar" class="text-3xl md:text-4xl font-extrabold mono">0.000</div>
+          <div class="text-xs text-gray-400">decision: <span id="decision" class="mono">0</span> · thresholds: <span id="thDisp" class="mono">[-0.25, +0.25]</span></div>
+        </div>
+        <div id="flagWrap" class="pill" style="background:#7c6f64;color:#e5e7eb"><span id="flagEmoji">🟫</span><span class="text-xs">tend</span></div>
+      </div>
+
+      <div class="mt-6 text-xs text-gray-400">
+        <details>
+          <summary class="cursor-pointer">embed snippet</summary>
+<pre><code>&lt;script src="https://eriirfos-eng.github.io/ternlang/docs/ternary-core.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  const { score, decide, reduce } = TernaryCore;
+  const s = score([+1, 0, -1], [0.5, 0.2, 0.3]);
+  const d = decide(s);
+  const next = reduce();
+  console.log(next(+1));
+&lt;/script&gt;</code></pre>
+        </details>
+      </div>
+    </section>
+
+    <section class="card rounded-2xl border border-[#30363d] p-6">
+      <h2 class="text-xl font-bold mb-2">about</h2>
+      <p class="text-sm text-gray-300">This demo shows the OIUIDI ternary operator: inputs a,b,c ∈ [-1,0,+1], aggregated with a soft nonlinearity, snapped to {-1,0,+1} by thresholds, then fed through a temporal reducer t̂ that adds momentum and hysteresis to avoid flapping on noise. Flags map to 🟜 reject · 🟫 tend · ⬛ affirm.</p>
+      <div class="mt-4 text-xs text-gray-400">MIT License · paste this file at <code>/docs/apps/ternary-demo.html</code> and make sure <code>/docs/ternary-core.js</code> is present.</div>
+    </section>
+  </main>
+
+  <script>
+    // guard
+    if (!window.TernaryCore) { console.warn('ternary-core.js not found: ensure this page is served from /docs with the core at ./ternary-core.js'); }
+    const { score, decide, flag, reduce } = window.TernaryCore || {};
+
+    // elements
+    const els = ["a","b","c","aw","bw","cw","thNeg","thPos","alpha","inertia"].reduce((acc,id)=>{acc[id]=document.getElementById(id);return acc;},{});
+    const out = {
+      aVal:document.getElementById('aVal'), bVal:document.getElementById('bVal'), cVal:document.getElementById('cVal'),
+      awVal:document.getElementById('awVal'), bwVal:document.getElementById('bwVal'), cwVal:document.getElementById('cwVal'),
+      thNegVal:document.getElementById('thNegVal'), thPosVal:document.getElementById('thPosVal'),
+      scalar:document.getElementById('scalar'), decision:document.getElementById('decision'), thDisp:document.getElementById('thDisp'),
+      flagWrap:document.getElementById('flagWrap'), flagEmoji:document.getElementById('flagEmoji')
+    };
+    const streamEl = document.getElementById('stream');
+    const autopulseEl = document.getElementById('autopulse');
+    const resetBtn = document.getElementById('reset');
+
+    let next = reduce ? reduce() : null;
+    function fmt(x){return (Math.round(x*1000)/1000).toFixed(3)}
+
+    function read(){
+      const a = parseFloat(els.a.value), b = parseFloat(els.b.value), c = parseFloat(els.c.value);
+      const w = [parseFloat(els.aw.value), parseFloat(els.bw.value), parseFloat(els.cw.value)];
+      const neg = parseFloat(els.thNeg.value), pos = parseFloat(els.thPos.value);
+      const alpha = parseFloat(els.alpha.value), inertia = parseFloat(els.inertia.value);
+      out.aVal.textContent = fmt(a); out.bVal.textContent = fmt(b); out.cVal.textContent = fmt(c);
+      out.awVal.textContent = fmt(w[0]); out.bwVal.textContent = fmt(w[1]); out.cwVal.textContent = fmt(w[2]);
+      out.thNegVal.textContent = fmt(neg); out.thPosVal.textContent = fmt(pos);
+      out.thDisp.textContent = `[${fmt(neg)}, ${fmt(pos)}]`;
+      return { a,b,c,w,neg,pos,alpha,inertia };
+    }
+
+    function render(){
+      const { a,b,c,w,neg,pos,alpha,inertia } = read();
+      let s, d;
+      if (streamEl.checked && next){
+        const state = next(score([a,b,c], w), { alpha, inertia, neg, pos });
+        s = state.s; d = state.d;
+      } else {
+        s = score([a,b,c], w);
+        d = decide(s, undefined, { neg, pos });
+      }
+      out.scalar.textContent = fmt(s);
+      out.decision.textContent = d;
+      const f = flag(d);
+      out.flagWrap.style.background = f.color;
+      out.flagEmoji.textContent = f.emoji;
+    }
+
+    // listeners
+    document.querySelectorAll('input[type="range"]').forEach(el=>el.addEventListener('input', render));
+    streamEl.addEventListener('change', ()=>{ next = reduce(); render(); });
+    resetBtn.addEventListener('click', ()=>{ next = reduce(); render(); });
+
+    // autopulse demo: oscillate inputs gently
+    let t=0; function tick(){
+      if (autopulseEl.checked){
+        t += 0.02;
+        els.a.value = Math.sin(t).toFixed(2);
+        els.b.value = Math.sin(t*0.8 + 1.2).toFixed(2);
+        els.c.value = Math.sin(t*1.25 + 2.4).toFixed(2);
+        render();
+      }
+      requestAnimationFrame(tick);
+    }
+
+    render(); tick();
+  </script>
+</body>
+</html>
