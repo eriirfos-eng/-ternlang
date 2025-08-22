@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>26‑Hour Solar Clock · OIUIDI</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
+    .glass { backdrop-filter: blur(8px); background: rgba(22,27,34,.6); }
+    canvas { border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-[#0d1117] text-[#c9d1d9] min-h-screen flex items-center justify-center p-4">
+  <main class="w-full max-w-4xl grid md:grid-cols-2 gap-6">
+    <section class="glass rounded-2xl border border-[#30363d] p-6 shadow-xl">
+      <header class="mb-4">
+        <h1 class="text-2xl md:text-3xl font-extrabold">26‑Hour Solar Clock</h1>
+        <p class="text-sm text-gray-400">two thirteens; one day. si second stays sacred.</p>
+      </header>
+
+      <div class="flex flex-col items-center">
+        <div class="relative">
+          <canvas id="clock" class="w-[340px] h-[340px] md:w-[420px] md:h-[420px] bg-[#161b22] shadow-lg"></canvas>
+          <!-- A13 / P13 markers -->
+          <div class="absolute -bottom-5 inset-x-0 flex justify-between text-xs text-gray-400 px-4 select-none">
+            <span>A13 (0–12)</span>
+            <span>P13 (13–25)</span>
+          </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+          <div class="rounded-xl border border-[#30363d] p-4">
+            <h2 class="text-sm text-gray-300 font-semibold">new time (26h)</h2>
+            <p id="newTime" class="text-3xl font-bold tracking-tight">00:00:00</p>
+            <p id="newMeta" class="text-xs text-gray-400 mt-1">noon = 13:00</p>
+          </div>
+          <div class="rounded-xl border border-[#30363d] p-4">
+            <h2 class="text-sm text-gray-300 font-semibold">reference (24h)</h2>
+            <p id="oldTime" class="text-3xl font-bold tracking-tight">00:00:00</p>
+            <p id="oldMeta" class="text-xs text-gray-400 mt-1">local system time</p>
+          </div>
+        </div>
+
+        <div class="mt-6 flex items-center gap-3 text-sm text-gray-300">
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input id="smooth" type="checkbox" class="accent-[#58a6ff]" />
+            smooth second hand
+          </label>
+          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+            <input id="utc" type="checkbox" class="accent-[#58a6ff]" />
+            use UTC
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <section class="glass rounded-2xl border border-[#30363d] p-6 shadow-xl">
+      <h2 class="text-xl font-bold mb-2">spec · mapping</h2>
+      <ul class="text-sm space-y-2 text-gray-300 list-disc pl-5">
+        <li>1 solar day = <span class="font-semibold">86 400 s</span> (si).</li>
+        <li>redefine the hour: <span class="font-semibold">26 new hours / day</span>.</li>
+        <li>new hour length = 86 400 / 26 = <span class="font-semibold">3 323.0769 s</span> ≈ 55m 23.0769s.</li>
+        <li>mapping preserves seconds; hours & minutes are re-binned.</li>
+        <li>noon (12:00) → <span class="font-semibold">13:00</span> on the 26h dial.</li>
+      </ul>
+      <div class="mt-4 text-xs text-gray-400">
+        tip: hold ⌘/Ctrl to copy the readouts during experiments.
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // constants
+    const SI_SECONDS_IN_DAY = 86400;     // 24 * 60 * 60
+    const NEW_HOURS_IN_DAY = 26;         // two thirteens
+    const NEW_SECONDS_IN_DAY = NEW_HOURS_IN_DAY * 3600; // keep 60*60 for convenience
+
+    // elements
+    const canvas = document.getElementById('clock');
+    const newTimeEl = document.getElementById('newTime');
+    const oldTimeEl = document.getElementById('oldTime');
+    const smoothEl  = document.getElementById('smooth');
+    const utcEl     = document.getElementById('utc');
+
+    // high‑dpi canvas setup
+    function setupCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width  = Math.round(rect.width * dpr);
+      canvas.height = Math.round(rect.height * dpr);
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in css pixels
+      return ctx;
+    }
+
+    let ctx = setupCanvas();
+    window.addEventListener('resize', () => { ctx = setupCanvas(); });
+
+    function format2(n){ return String(Math.floor(n)).padStart(2,'0'); }
+
+    function getNow(useUTC){
+      const now = new Date();
+      return {
+        h: useUTC ? now.getUTCHours()   : now.getHours(),
+        m: useUTC ? now.getUTCMinutes() : now.getMinutes(),
+        s: useUTC ? now.getUTCSeconds() : now.getSeconds(),
+        ms: useUTC ? now.getUTCMilliseconds?.() || 0 : now.getMilliseconds()
+      };
+    }
+
+    function draw() {
+      const useUTC = utcEl.checked;
+      const {h, m, s, ms} = getNow(useUTC);
+      const frac = (h*3600 + m*60 + s + (smoothEl.checked ? ms/1000 : 0)) / SI_SECONDS_IN_DAY; // 0..1
+
+      // convert to 26h time components
+      const newTotal = frac * NEW_SECONDS_IN_DAY; // in new seconds (which are SI seconds here)
+      const nH = Math.floor(newTotal / 3600);
+      const nM = Math.floor((newTotal % 3600) / 60);
+      const nS = Math.floor(newTotal % 60);
+
+      // update readouts
+      newTimeEl.textContent = `${format2(nH)}:${format2(nM)}:${format2(nS)}`;
+      oldTimeEl.textContent = `${format2(h)}:${format2(m)}:${format2(s)}`;
+
+      paintDial(nH, nM, nS, smoothEl.checked ? (newTotal % 60) : nS);
+      requestAnimationFrame(draw);
+    }
+
+    function paintDial(nH, nM, nS, secPrecise){
+      const rect = canvas.getBoundingClientRect();
+      const cx = rect.width/2, cy = rect.height/2;
+      const r  = Math.min(cx, cy) * 0.9;
+
+      // clear
+      ctx.clearRect(0,0,rect.width,rect.height);
+
+      // outer circle
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.fillStyle = '#161b22';
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#30363d';
+      ctx.stroke();
+
+      // ticks (26 majors, 130 minors)
+      for(let i=0;i<NEW_HOURS_IN_DAY;i++){
+        const ang = (i/NEW_HOURS_IN_DAY)*Math.PI*2 - Math.PI/2;
+        drawTick(cx, cy, r, ang, i%2===0 ? 10 : 6, i%2===0 ? 2 : 1, '#c9d1d9');
+        // numerals at every hour
+        const nx = cx + (r*0.78)*Math.cos(ang);
+        const ny = cy + (r*0.78)*Math.sin(ang);
+        ctx.fillStyle = '#c9d1d9';
+        ctx.font = '600 16px Inter';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(i), nx, ny);
+      }
+      // minor ticks (every 1/5 of an hour)
+      for(let j=0;j<NEW_HOURS_IN_DAY*5;j++){
+        const ang = (j/(NEW_HOURS_IN_DAY*5))*Math.PI*2 - Math.PI/2;
+        drawTick(cx, cy, r, ang, 4, 1, '#8b949e');
+      }
+
+      // center
+      ctx.beginPath();
+      ctx.arc(cx, cy, 6, 0, Math.PI*2);
+      ctx.fillStyle = '#c9d1d9';
+      ctx.fill();
+
+      // hands
+      const hourAngle   = ((nH + nM/60 + nS/3600) / NEW_HOURS_IN_DAY) * Math.PI*2 - Math.PI/2;
+      const minuteAngle = ((nM + nS/60) / 60) * Math.PI*2 - Math.PI/2;
+      const secondAngle = (secPrecise / 60) * Math.PI*2 - Math.PI/2;
+
+      drawHand(cx, cy, hourAngle,   r*0.5, 6, '#e6efff');
+      drawHand(cx, cy, minuteAngle, r*0.7, 4, '#c9d1d9');
+      drawHand(cx, cy, secondAngle, r*0.82, 2, '#f85149');
+    }
+
+    function drawTick(cx, cy, r, ang, len, width, color){
+      ctx.beginPath();
+      ctx.lineWidth = width;
+      ctx.strokeStyle = color;
+      ctx.lineCap = 'round';
+      ctx.moveTo(cx + r*Math.cos(ang), cy + r*Math.sin(ang));
+      ctx.lineTo(cx + (r-len)*Math.cos(ang), cy + (r-len)*Math.sin(ang));
+      ctx.stroke();
+    }
+
+    function drawHand(cx, cy, ang, len, width, color){
+      ctx.beginPath();
+      ctx.lineWidth = width;
+      ctx.strokeStyle = color;
+      ctx.lineCap = 'round';
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx + len*Math.cos(ang), cy + len*Math.sin(ang));
+      ctx.stroke();
+    }
+
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>
+
