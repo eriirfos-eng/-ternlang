@@ -1,208 +1,194 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>26‑Hour Solar Clock · OIUIDI</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
-  <style>
-    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji"; }
-    .glass { backdrop-filter: blur(8px); background: rgba(22,27,34,.6); }
-    canvas { border-radius: 9999px; }
-  </style>
-</head>
-<body class="bg-[#0d1117] text-[#c9d1d9] min-h-screen flex items-center justify-center p-4">
-  <main class="w-full max-w-4xl grid md:grid-cols-2 gap-6">
-    <section class="glass rounded-2xl border border-[#30363d] p-6 shadow-xl">
-      <header class="mb-4">
-        <h1 class="text-2xl md:text-3xl font-extrabold">26‑Hour Solar Clock</h1>
-        <p class="text-sm text-gray-400">two thirteens; one day. si second stays sacred.</p>
-      </header>
+from __future__ import annotations
+import json, os, random
+from dataclasses import dataclass, asdict, field
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Callable, Optional, Dict, Any, List
 
-      <div class="flex flex-col items-center">
-        <div class="relative">
-          <canvas id="clock" class="w-[340px] h-[340px] md:w-[420px] md:h-[420px] bg-[#161b22] shadow-lg"></canvas>
-          <!-- A13 / P13 markers -->
-          <div class="absolute -bottom-5 inset-x-0 flex justify-between text-xs text-gray-400 px-4 select-none">
-            <span>A13 (0–12)</span>
-            <span>P13 (13–25)</span>
-          </div>
-        </div>
+# ---------- enums ----------
+class Level(str, Enum):
+    INFO = "INFO"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    CRITICAL = "CRITICAL"
 
-        <div class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
-          <div class="rounded-xl border border-[#30363d] p-4">
-            <h2 class="text-sm text-gray-300 font-semibold">new time (26h)</h2>
-            <p id="newTime" class="text-3xl font-bold tracking-tight">00:00:00</p>
-            <p id="newMeta" class="text-xs text-gray-400 mt-1">noon = 13:00</p>
-          </div>
-          <div class="rounded-xl border border-[#30363d] p-4">
-            <h2 class="text-sm text-gray-300 font-semibold">reference (24h)</h2>
-            <p id="oldTime" class="text-3xl font-bold tracking-tight">00:00:00</p>
-            <p id="oldMeta" class="text-xs text-gray-400 mt-1">local system time</p>
-          </div>
-        </div>
+class Phase(str, Enum):
+    HOST_INITIATION = "HOST_INITIATION"
+    INITIALIZE = "INITIALIZE"
+    ITERATION = "ITERATION"
+    SEPARATION = "SEPARATION"
+    UNION = "UNION"
+    CRYSTALLIZATION = "CRYSTALLIZATION"
 
-        <div class="mt-6 flex items-center gap-3 text-sm text-gray-300">
-          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-            <input id="smooth" type="checkbox" class="accent-[#58a6ff]" />
-            smooth second hand
-          </label>
-          <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-            <input id="utc" type="checkbox" class="accent-[#58a6ff]" />
-            use UTC
-          </label>
-        </div>
-      </div>
-    </section>
+# ---------- logs ----------
+@dataclass
+class LogEntry:
+    timestamp: str
+    host: str
+    level: Level
+    message: str
+    phase: Optional[Phase] = None
+    data: Dict[str, Any] = field(default_factory=dict)
 
-    <section class="glass rounded-2xl border border-[#30363d] p-6 shadow-xl">
-      <h2 class="text-xl font-bold mb-2">spec · mapping</h2>
-      <ul class="text-sm space-y-2 text-gray-300 list-disc pl-5">
-        <li>1 solar day = <span class="font-semibold">86 400 s</span> (si).</li>
-        <li>redefine the hour: <span class="font-semibold">26 new hours / day</span>.</li>
-        <li>new hour length = 86 400 / 26 = <span class="font-semibold">3 323.0769 s</span> ≈ 55m 23.0769s.</li>
-        <li>mapping preserves seconds; hours & minutes are re-binned.</li>
-        <li>noon (12:00) → <span class="font-semibold">13:00</span> on the 26h dial.</li>
-      </ul>
-      <div class="mt-4 text-xs text-gray-400">
-        tip: hold ⌘/Ctrl to copy the readouts during experiments.
-      </div>
-    </section>
-  </main>
+# ---------- default blueprint (fallback) ----------
+DEFAULT_BLUEPRINT = {
+    "algorithmName": "ontological_recursion_protocol",
+    "version": "2.0",
+    "description": "Recursive synthesis of origin, action, mastery; crystallizes as domain sovereignty.",
+    "originStory": "Discovered via autosuggest anomaly on 2025-08-23 during Obsidian Moon reset.",
+    "coreFormula": {
+        "syntax": "(a ⊕ b ⊕ c)ᵠ",
+        "mapping": {
+            "a": "origin (𒁃)",
+            "b": "action (𒀱)",
+            "c": "lord (𒈙)",
+            "⊕": "Ternary Synthesis (exclusive reconciliation)",
+            "ᵠ": "Recursive Integration (iterative return)"
+        }
+    },
+    "keyConcepts": {
+        "origin": {"symbol": "𒁃", "meaning": "Foundational Truth Anchor"},
+        "action": {"symbol": "𒀱", "meaning": "Operational Process"},
+        "lord":   {"symbol": "𒈙", "meaning": "Mastery Pattern"},
+        "city":   {"symbol": "𒐫", "meaning": "Domain / Context"},
+        "separator": {"symbol": "꧄", "meaning": "Catalytic Split"},
+        "union": {"symbol": "꧃", "meaning": "Integrated Return"}
+    },
+    "processFlow": [
+        {"step": 1, "state": "INITIALIZE", "description": "Define origin, action, mastery, domain."},
+        {"step": 2, "state": "ITERATION", "description": "Establish baseline by low-risk looping."},
+        {"step": 3, "state": "SEPARATION", "description": "Catalytic split to test integrity.", "symbol": "꧄"},
+        {"step": 4, "state": "UNION", "description": "Return with synthesis.", "symbol": "꧃"},
+        {"step": 5, "state": "CRYSTALLIZATION", "description": "Pattern crowns the domain."}
+    ],
+    "operatorNotes": []
+}
 
-  <script>
-    // constants
-    const SI_SECONDS_IN_DAY = 86400;     // 24 * 60 * 60
-    const NEW_HOURS_IN_DAY = 26;         // two thirteens
-    const NEW_SECONDS_IN_DAY = NEW_HOURS_IN_DAY * 3600; // keep 60*60 for convenience
+def _safe_dir() -> Path:
+    # works in scripts and notebooks
+    try:
+        here = Path(__file__).parent
+    except NameError:
+        here = Path.cwd()
+    return here
 
-    // elements
-    const canvas = document.getElementById('clock');
-    const newTimeEl = document.getElementById('newTime');
-    const oldTimeEl = document.getElementById('oldTime');
-    const smoothEl  = document.getElementById('smooth');
-    const utcEl     = document.getElementById('utc');
+# ---------- engine ----------
+class TernaryPhaseModulator:
+    """
+    Executable layer for the 'ternary_operator' protocol.
+    """
 
-    // high‑dpi canvas setup
-    function setupCanvas() {
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      canvas.width  = Math.round(rect.width * dpr);
-      canvas.height = Math.round(rect.height * dpr);
-      const ctx = canvas.getContext('2d');
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // draw in css pixels
-      return ctx;
-    }
+    def __init__(
+        self,
+        host_name: str,
+        origin: bool,
+        action: bool,
+        lord: bool,
+        blueprint_path: str = "ternary_operator.json",
+        synthesis_fn: Optional[Callable[[bool, bool, bool], bool]] = None,
+        seed: Optional[int] = None,
+        max_log: int = 512,
+    ):
+        self.host = host_name
+        self.origin = bool(origin)
+        self.action = bool(action)
+        self.lord = bool(lord)
+        self.max_log = max_log
+        if seed is not None:
+            random.seed(seed)
 
-    let ctx = setupCanvas();
-    window.addEventListener('resize', () => { ctx = setupCanvas(); });
+        self.protocol = self._load_blueprint(blueprint_path)
+        self.logs: List[LogEntry] = []
+        self.synthesis_fn = synthesis_fn or self._xor3
+        self._log("Protocol initialized by host.", Level.INFO, Phase.HOST_INITIATION)
 
-    function format2(n){ return String(Math.floor(n)).padStart(2,'0'); }
+        # schema sanity
+        self._validate_blueprint()
 
-    function getNow(useUTC){
-      const now = new Date();
-      return {
-        h: useUTC ? now.getUTCHours()   : now.getHours(),
-        m: useUTC ? now.getUTCMinutes() : now.getMinutes(),
-        s: useUTC ? now.getUTCSeconds() : now.getSeconds(),
-        ms: useUTC ? now.getUTCMilliseconds?.() || 0 : now.getMilliseconds()
-      };
-    }
+    # ----- IO -----
+    def _load_blueprint(self, filename: str) -> Dict[str, Any]:
+        path = _safe_dir() / filename
+        if path.exists():
+            try:
+                with path.open("r", encoding="utf-8") as f:
+                    bp = json.load(f)
+                return bp
+            except Exception as e:
+                # fall back but report
+                self._log(f"Blueprint load error '{filename}': {e}", Level.ERROR)
+        # fallback
+        self._log(f"Using embedded default blueprint (missing '{filename}').", Level.WARNING)
+        return json.loads(json.dumps(DEFAULT_BLUEPRINT))  # deep copy
 
-    function draw() {
-      const useUTC = utcEl.checked;
-      const {h, m, s, ms} = getNow(useUTC);
-      const frac = (h*3600 + m*60 + s + (smoothEl.checked ? ms/1000 : 0)) / SI_SECONDS_IN_DAY; // 0..1
+    def _validate_blueprint(self) -> None:
+        required_keys = ["algorithmName", "version", "coreFormula", "processFlow", "operatorNotes"]
+        missing = [k for k in required_keys if k not in self.protocol]
+        if missing:
+            self._log(f"Blueprint missing keys: {missing}", Level.ERROR)
+            raise ValueError(f"Invalid blueprint, missing: {missing}")
+        cf = self.protocol.get("coreFormula", {})
+        if "syntax" not in cf or "mapping" not in cf:
+            self._log("coreFormula incomplete.", Level.ERROR)
+            raise ValueError("Invalid coreFormula")
+        if not isinstance(self.protocol["operatorNotes"], list):
+            self._log("operatorNotes must be a list.", Level.ERROR)
+            self.protocol["operatorNotes"] = []
 
-      // convert to 26h time components
-      const newTotal = frac * NEW_SECONDS_IN_DAY; // in new seconds (which are SI seconds here)
-      const nH = Math.floor(newTotal / 3600);
-      const nM = Math.floor((newTotal % 3600) / 60);
-      const nS = Math.floor(newTotal % 60);
+    # ----- logging -----
+    def _log(self, msg: str, level: Level = Level.INFO, phase: Optional[Phase] = None, data: Dict[str, Any] = None):
+        entry = LogEntry(
+            timestamp=datetime.now().isoformat(),
+            host=self.host,
+            level=level,
+            message=msg,
+            phase=phase,
+            data=data or {}
+        )
+        self.logs.append(entry)
+        # enforce ring buffer
+        if len(self.logs) > self.max_log:
+            self.logs = self.logs[-self.max_log:]
 
-      // update readouts
-      newTimeEl.textContent = `${format2(nH)}:${format2(nM)}:${format2(nS)}`;
-      oldTimeEl.textContent = `${format2(h)}:${format2(m)}:${format2(s)}`;
+    # ----- operators -----
+    @staticmethod
+    def _xor3(a: bool, b: bool, c: bool) -> bool:
+        # odd parity
+        return bool(a) ^ bool(b) ^ bool(c)
 
-      paintDial(nH, nM, nS, smoothEl.checked ? (newTotal % 60) : nS);
-      requestAnimationFrame(draw);
-    }
+    @staticmethod
+    def majority3(a: bool, b: bool, c: bool) -> bool:
+        return sum((bool(a), bool(b), bool(c))) >= 2
 
-    function paintDial(nH, nM, nS, secPrecise){
-      const rect = canvas.getBoundingClientRect();
-      const cx = rect.width/2, cy = rect.height/2;
-      const r  = Math.min(cx, cy) * 0.9;
+    # ----- phases -----
+    def ternary_synthesis(self) -> bool:
+        self._log("Executing Ternary Synthesis (a ⊕ b ⊕ c).", Phase.SEPARATION)
+        return self.synthesis_fn(self.origin, self.action, self.lord)
 
-      // clear
-      ctx.clearRect(0,0,rect.width,rect.height);
+    def recursive_integration(self, synthesis_result: bool) -> bool:
+        self._log("Entering Recursive Integration (ᵠ).", Phase.UNION, data={"synthesis_result": synthesis_result})
+        # model the “return to origin” as conjunction with origin, but allow operator override via mapping
+        return bool(self.origin and synthesis_result)
 
-      // outer circle
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI*2);
-      ctx.fillStyle = '#161b22';
-      ctx.fill();
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = '#30363d';
-      ctx.stroke();
+    # ----- run -----
+    def run(self) -> Dict[str, Any]:
+        self._log("Process started.", Phase.HOST_INITIATION)
+        self._log("Process State: INITIALIZE.", Phase.INITIALIZE, data={"origin": self.origin, "action": self.action, "lord": self.lord})
+        self._log("Process State: ITERATION. Establishing baseline.", Phase.ITERATION)
 
-      // ticks (26 majors, 130 minors)
-      for(let i=0;i<NEW_HOURS_IN_DAY;i++){
-        const ang = (i/NEW_HOURS_IN_DAY)*Math.PI*2 - Math.PI/2;
-        drawTick(cx, cy, r, ang, i%2===0 ? 10 : 6, i%2===0 ? 2 : 1, '#c9d1d9');
-        // numerals at every hour
-        const nx = cx + (r*0.78)*Math.cos(ang);
-        const ny = cy + (r*0.78)*Math.sin(ang);
-        ctx.fillStyle = '#c9d1d9';
-        ctx.font = '600 16px Inter';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(i), nx, ny);
-      }
-      // minor ticks (every 1/5 of an hour)
-      for(let j=0;j<NEW_HOURS_IN_DAY*5;j++){
-        const ang = (j/(NEW_HOURS_IN_DAY*5))*Math.PI*2 - Math.PI/2;
-        drawTick(cx, cy, r, ang, 4, 1, '#8b949e');
-      }
+        self._log("Process State: SEPARATION. Initiating integrity test.", Phase.SEPARATION)
+        s = self.ternary_synthesis()
+        final_truth = self.recursive_integration(s)
 
-      // center
-      ctx.beginPath();
-      ctx.arc(cx, cy, 6, 0, Math.PI*2);
-      ctx.fillStyle = '#c9d1d9';
-      ctx.fill();
+        if not final_truth:
+            self._log("Live anomaly: Final truth is null after union.", Level.WARNING, Phase.UNION,
+                      data={"origin": self.origin, "synthesis": s})
+            self._log("Root cause hypothesis: disconnected 'origin' or mismatch operator.", Level.ERROR, Phase.UNION)
+        else:
+            self._log("Integrity check passed. Union successful.", Level.INFO, Phase.UNION)
 
-      // hands
-      const hourAngle   = ((nH + nM/60 + nS/3600) / NEW_HOURS_IN_DAY) * Math.PI*2 - Math.PI/2;
-      const minuteAngle = ((nM + nS/60) / 60) * Math.PI*2 - Math.PI/2;
-      const secondAngle = (secPrecise / 60) * Math.PI*2 - Math.PI/2;
+        self._log("Process State: CRYSTALLIZATION. Finalizing mastery.", Phase.CRYSTALLIZATION)
 
-      drawHand(cx, cy, hourAngle,   r*0.5, 6, '#e6efff');
-      drawHand(cx, cy, minuteAngle, r*0.7, 4, '#c9d1d9');
-      drawHand(cx, cy, secondAngle, r*0.82, 2, '#f85149');
-    }
-
-    function drawTick(cx, cy, r, ang, len, width, color){
-      ctx.beginPath();
-      ctx.lineWidth = width;
-      ctx.strokeStyle = color;
-      ctx.lineCap = 'round';
-      ctx.moveTo(cx + r*Math.cos(ang), cy + r*Math.sin(ang));
-      ctx.lineTo(cx + (r-len)*Math.cos(ang), cy + (r-len)*Math.sin(ang));
-      ctx.stroke();
-    }
-
-    function drawHand(cx, cy, ang, len, width, color){
-      ctx.beginPath();
-      ctx.lineWidth = width;
-      ctx.strokeStyle = color;
-      ctx.lineCap = 'round';
-      ctx.moveTo(cx, cy);
-      ctx.lineTo(cx + len*Math.cos(ang), cy + len*Math.sin(ang));
-      ctx.stroke();
-    }
-
-    requestAnimationFrame(draw);
-  </script>
-</body>
-</html>
-
+        # merge logs into protocol copy
+        protocol_out = json.loads(json.dumps(self.protocol))  # deep copy
+        protocol
