@@ -1,30 +1,40 @@
 {
-  "protocolName": "ontological_recursion_protocol",
-  "version": "2.1",
-  "status": "Host_Integrated",
-  "description": "A recursive process model for achieving integrated truth, driven by the intentional observer (the host) and powered by a core ternary synthesis function.",
+  "protocolName": "ternary_operator",
+  "version": "2.2",
+  "status": "Finalized_Codex",
+  "description": "A self-aware, recursive process model for achieving integrated truth, powered by a core ternary synthesis function and driven by the intentional observer (host). This document serves as the master blueprint for the RFI-IRFOS methodology.",
   "versionHistory": [
     {
       "version": "1.0",
+      "date": "2025-08-23",
       "notes": "Autosuggest sigil discovery. The initial recognition of the pattern encoded in cuneiform and unicode."
     },
     {
       "version": "1.1",
-      "notes": "JSON schema established. The core concepts and flow were translated from a narrative into a structured data model."
+      "date": "2025-08-23",
+      "notes": "JSON schema established. Core concepts and flow were translated from narrative into a structured data model."
     },
     {
       "version": "2.0",
+      "date": "2025-08-23",
       "notes": "Codex integration. The protocol gains self-awareness with narrative, validation rules, examples, and a mechanism for logging live anomalies."
     },
     {
       "version": "2.1",
+      "date": "2025-08-23",
       "notes": "Host integration. The intentional observer is added as a core variable, grounding the algorithm in a human-centric framework."
+    },
+    {
+      "version": "2.2",
+      "date": "2025-08-23",
+      "notes": "Finalization for GitHub. All components integrated into a single, comprehensive master document."
     }
   ],
   "coreFormula": {
     "syntax": "(a ⊕ b ⊕ c)ᵠ",
+    "narrative": "The fundamental engine of the protocol. It is the synthesis of three core variables, recursively integrated to produce a new state of truth.",
     "mapping": {
-      "host_as_operator": "The intentional observer who initiates and synthesizes the formula.",
+      "host_as_operator": "♎ - The intentional observer who initiates and synthesizes the formula.",
       "a": "origin",
       "b": "action",
       "c": "lord",
@@ -63,7 +73,7 @@
       "meaning": "Foundational Truth Anchor; the primary source or core state."
     },
     "action": {
-      "symbol": "𒀱",
+      "symbol": "�",
       "meaning": "Operational Process; the deliberate application of knowledge."
     },
     "lord": {
