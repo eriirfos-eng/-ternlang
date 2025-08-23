@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ontological Recursion Protocol",
+  "type": "object",
+  "required": ["algorithmName", "version", "coreFormula", "processFlow", "operatorNotes"],
+  "properties": {
+    "algorithmName": { "type": "string", "const": "ontological_recursion_protocol" },
+    "version": { "type": "string", "pattern": "^\\d+\\.\\d+(\\.\\d+)?$" },
+    "description": { "type": "string" },
+    "originStory": { "type": "string" },
+    "coreFormula": {
+      "type": "object",
+      "required": ["syntax", "mapping"],
+      "properties": {
+        "syntax": { "type": "string", "const": "(a ⊕ b ⊕ c)ᵠ" },
+        "mapping": {
+          "type": "object",
+          "required": ["a", "b", "c", "⊕", "ᵠ"],
+          "properties": {
+            "a": { "type": "string" },
+            "b": { "type": "string" },
+            "c": { "type": "string" },
+            "⊕": { "type": "string" },
+            "ᵠ": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "keyConcepts": { "type": "object", "additionalProperties": true },
+    "processFlow": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["state", "description"],
+        "properties": {
+          "step": { "type": "integer", "minimum": 1 },
+          "state": { "type": "string", "enum": ["INITIALIZE","ITERATION","SEPARATION","UNION","CRYSTALLIZATION"] },
+          "description": { "type": "string" },
+          "symbol": { "type": "st
