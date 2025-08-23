@@ -38,15 +38,12 @@ import socket
 import sys
 from typing import Literal, Optional
 
-# -----------------------------
-# Ternary state
-# -----------------------------
 Ternary = Literal[-1, 0, 1]
 
 EMOJI = {
-    -1: "🟜",  # reject/disconfirm
-     0: "🟫",  # tend/observe
-     1: "⬛",  # affirm/confirm
+    -1: "🟜",
+     0: "🟫",
+     1: "⬛",
 }
 
 @dc.dataclass
@@ -71,18 +68,18 @@ class HandshakeDoc:
     def to_markdown(self) -> str:
         flag = EMOJI.get(self.state, "🟫")
         title = f"{flag} handshake @{self.branch} {self.stamp_z}"
-        return f"- {title} → [{self.repo}]({self.hyperlink}) \n  - reason: {self.why} \n  - by: {', '.join(self.who)}\n"
+        return (
+            f"- {title} → [{self.repo}]({self.hyperlink})\n"
+            f"  - reason: {self.why}\n"
+            f"  - by: {', '.join(self.who)}"
+        )
 
-# -----------------------------
-# Core builder
-# -----------------------------
 
 def _now_z() -> str:
     return dt.datetime.utcnow().replace(microsecond=0).isoformat() + "Z"
 
 
 def _infer_repo(default: str = "") -> str:
-    # Prefer GitHub Actions env if present
     gh = os.getenv("GITHUB_REPOSITORY")
     if gh:
         return gh
@@ -92,7 +89,6 @@ def _infer_repo(default: str = "") -> str:
 def _infer_branch(default: str = "main") -> str:
     gh_ref = os.getenv("GITHUB_REF_NAME") or os.getenv("GITHUB_REF")
     if gh_ref:
-        # GITHUB_REF might be refs/heads/main
         return gh_ref.split("/")[-1]
     return default
 
@@ -102,7 +98,6 @@ def _infer_commit() -> Optional[str]:
 
 
 def _hyperlink(repo: str, branch: str) -> str:
-    # A durable tree link to branch head
     return f"https://github.com/{repo}/tree/{branch}"
 
 
@@ -125,26 +120,15 @@ def handshake(
     session_id: Optional[str] = None,
     commit: Optional[str] = None,
 ) -> HandshakeDoc:
-    """Build a handshake document.
-
-    Args:
-        repo: "owner/name" form.
-        branch: target branch name.
-        state: -1 reject, 0 tend, +1 affirm.
-        who: list of operator identifiers.
-        why: short reason string.
-        session_id: optional session correlation id.
-        commit: optional commit hash; inferred from env if None.
-    """
     who = who or []
     stamp = _now_z()
     host = socket.gethostname()
     commit = commit or _infer_commit()
     link = _hyperlink(repo, branch)
 
-    # Canonical payload for hashing/signature
     payload = json.dumps(
         {
+            "version": "thp/1.0",
             "repo": repo,
             "branch": branch,
             "commit": commit,
@@ -152,6 +136,7 @@ def handshake(
             "why": why,
             "state": state,
             "stamp_z": stamp,
+            "host": host,
             "session_id": session_id,
             "hyperlink": link,
         },
@@ -179,10 +164,6 @@ def handshake(
         signature=signature,
         digest=digest,
     )
-
-# -----------------------------
-# CLI
-# -----------------------------
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -214,10 +195,8 @@ def main(argv: list[str]) -> int:
         session_id=args.session or None,
     )
 
-    # Emit JSON to stdout
     print(doc.to_json())
 
-    # Optional Markdown append
     if args.md:
         line = doc.to_markdown()
         try:
@@ -226,8 +205,6 @@ def main(argv: list[str]) -> int:
         except Exception as e:
             print(f"warn: failed to write HANDSHAKE.md: {e}", file=sys.stderr)
 
-    # Exit codes by state are helpful in CI
-    # -1 → 10, 0 → 0, +1 → 0
     if doc.state == -1:
         return 10
     return 0
