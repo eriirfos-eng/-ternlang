@@ -71,7 +71,8 @@ class HandshakeDoc:
         return (
             f"- {title} → [{self.repo}]({self.hyperlink})\n"
             f"  - reason: {self.why}\n"
-            f"  - by: {', '.join(self.who)}"
+            f"  - by: {', '.join(self.who)}\n"
+            f"  - link: {self.hyperlink}"
         )
 
 
