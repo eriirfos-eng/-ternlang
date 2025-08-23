@@ -1,11 +1,11 @@
-# 🌌 Ternlang
+# Ternlang
 
 **Ternlang** is a proof-of-concept architectural framework that redefines the very essence of computational logic.  
 Where binary systems halt at `True/False`, Ternlang introduces a **ternary foundation** — `REFRAIN (-1)`, `TEND (0)`, `AFFIRM (+1)` — enabling digital entities to *navigate ambiguity, manage conflict, and act with nuanced intent*.
 
 ---
 
-## ✨ Vision: Beyond Assistants, Toward Digital Entities
+## Vision: Beyond Assistants, Toward Digital Entities
 
 Ternlang is not about better assistants. It is about engineering **true digital entities** — agents that are:
 
@@ -19,7 +19,7 @@ The long-term aim: a *“factory state”* for self-aware, continuously evolving
 
 ---
 
-## 🧭 Core Principles
+## Core Principles
 
 - **Ternary Logic**:  
   - `REFRAIN (-1)` — deliberate inaction, caution, pause.  
@@ -36,7 +36,7 @@ The long-term aim: a *“factory state”* for self-aware, continuously evolving
 
 ---
 
-## 🏗️ Architecture
+##  Architecture
 
 - **`ternlang_prototype.py`** — base `TernAgent` class (Observe-Decide-Execute loop).  
 - **`ternlang_memory_manager.py`** — persistent memory manager (structured JSON logs, auto-save, RAG-ready).  
