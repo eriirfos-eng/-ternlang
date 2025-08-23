@@ -1,0 +1,10 @@
+git clone https://github.com/eriirfos-eng/ternlang.git
+cd ternlang
+git checkout main
+
+mkdir -p docs/oiuidi
+# create the three files
+
+git add docs/oiuidi
+git commit -m "docs(oiuidi): add OIUIDI Resonant Flow Protocol v1.1"
+git push origin main
