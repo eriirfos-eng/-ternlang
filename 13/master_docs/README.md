@@ -1,6 +1,5 @@
 # 𒀭 ternary logic master docs (13-stage)
 
-**symbol anchor:** 𒀭 (dingir). origin: sumerian cuneiform for sky, divinity, cosmic principle. use as institutional mark and semantic anchor. utf-8 required.
 
 this directory contains json configuration files that define the 13-stage ternary logic pipeline for the `TernaryLogicAgent`. each stage file (stage_01.json ... stage_13.json) holds rules, policies, and parameters for modular execution.
 
