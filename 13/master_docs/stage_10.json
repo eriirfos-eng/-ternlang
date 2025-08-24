@@ -1,0 +1,18 @@
+{
+  "name": "Action Execution",
+  "actions": {
+    "AFFIRM": "execute",
+    "TEND": "do_nothing",
+    "REFRAIN": "abort"
+  },
+  "affirm_subpolicy": {
+    "weak_affirm": {"action": "execute_with_caution", "log_priority": "low"},
+    "medium_affirm": {"action": "execute_normally", "log_priority": "normal"},
+    "strong_affirm": {"action": "execute_with_priority", "log_priority": "high"}
+  },
+  "policy": {
+    "on_action_failure": "revert_to_tend",
+    "on_unexpected_outcome": "trigger_feedback_review"
+  },
+  "notes": "stage translates scalar/label into real-world action or intentional inaction."
+}
