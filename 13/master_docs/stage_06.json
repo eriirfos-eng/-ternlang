@@ -1,0 +1,18 @@
+{
+  "name": "Refrain Trigger",
+  "rules": {
+    "harm_threshold": 2.0,
+    "conflict_level": "critical"
+  },
+  "taxonomy": {
+    "ecological": ["species_extinction", "habitat_loss", "ecosystem_collapse"],
+    "systemic": ["infrastructure_failure", "grid_collapse", "cascading_error"],
+    "human": ["toxicity", "hazard", "injury", "fatality"]
+  },
+  "policy": {
+    "on_harm_detected": "abort",
+    "on_conflict_level_critical": "abort",
+    "on_minor_harm": "revert_to_tend"
+  },
+  "notes": "this stage is the emergency brake. any critical harm flag forces REFRAIN."
+}
