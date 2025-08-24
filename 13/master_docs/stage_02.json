@@ -1,0 +1,22 @@
+{
+  "name": "Signal/Noise Triaging",
+  "rules": {
+    "signal": ["pattern", "anomaly", "fractal", "coherence", "periodic", "clustered"],
+    "noise": ["random", "background", "thermal", "sensor_glitch", "dropout"],
+    "ambiguous": ["unclassified", "unknown", "low_confidence"]
+  },
+  "scoring": {
+    "signal_weight": 1.5,
+    "noise_weight": -1.0,
+    "ambiguous_weight": -0.5
+  },
+  "ingest": {
+    "min_packet_fields": ["sensor_readings"],
+    "allow_empty_fields": ["notes"]
+  },
+  "policy": {
+    "on_missing_min_fields": "mark_ambiguous",
+    "on_parser_error": "mark_ambiguous"
+  },
+  "notes": "keyword heuristics only. swap for real detectors when ready."
+}
