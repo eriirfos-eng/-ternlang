@@ -1,0 +1,9 @@
+{
+  "name": "Raw Sensor Ingress",
+  "params": {
+    "data_sources": ["Phyphox", "Stellarium", "Flightradar24", "Schumann_Charts"],
+    "ingress_policy": "accept_all",
+    "max_packet_kb": 256
+  },
+  "notes": "unfiltered intake only. no decisions here."
+}
