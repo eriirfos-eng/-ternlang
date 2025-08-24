@@ -1,0 +1,19 @@
+{
+  "name": "The Great Reset",
+  "reset_state": "tend_to_base_state",
+  "modes": {
+    "soft_reset": {
+      "desc": "clear scalar state, keep memory intact",
+      "use_case": "normal cycle end"
+    },
+    "hard_reset": {
+      "desc": "clear scalar state and volatile memory",
+      "use_case": "catastrophic conflict or override"
+    }
+  },
+  "policy": {
+    "default": "soft_reset",
+    "on_override_violation": "hard_reset"
+  },
+  "notes": "resets agent back to TEND base. closes the loop, prevents drift."
+}
