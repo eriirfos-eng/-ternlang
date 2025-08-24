@@ -51,3 +51,30 @@ resets state back to base tend. can be soft (state reset, memory intact) or hard
 - header seal: `𒀭` precedes the project name in docs.
 - commit messages: prefix config changes with `𒀭` when they alter ethical or planetary guardrails.
 - logs: use `𒀭` once per run header to mark a blessed config set. avoid overuse to keep it meaningful.
+
+- ---
+
+## 𒀭 flow diagram
+
+```mermaid
+flowchart TD
+    S01[Stage 01 🟦 Raw Sensor Ingress] --> S02[Stage 02 🟦 Signal/Noise Triaging]
+    S02 --> S03[Stage 03 🟩 Ecocentric Weighting]
+    S03 --> S04[Stage 04 🟫 Intent Mapping]
+    S04 --> S05[Stage 05 🟧 Ambiguity Ping]
+
+    S05 -- conflict/null --> R1[REFRAIN 🟜]
+    S05 --> S06[Stage 06 🟥 Refrain Trigger]
+    S06 -- harm --> R1
+
+    S04 --> S07[Stage 07 ⬛ Affirm Tendency]
+    S07 --> S08[Stage 08 🟧 Ecocentric Override]
+    S08 -- red line --> R1
+    S08 --> S09[Stage 09 🟫 Ternary Resolution]
+
+    S09 --> S10[Stage 10 🟩 Action Execution]
+    S10 --> S11[Stage 11 🟦 Outcome Observation]
+    S11 --> S12[Stage 12 🟫 Recursive Feedback]
+    S12 --> S13[Stage 13 🟦 The Great Reset]
+    S13 --> S01
+
