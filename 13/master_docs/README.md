@@ -52,5 +52,3 @@ resets state back to base tend. can be soft (state reset, memory intact) or hard
 - header seal: `𒀭` precedes the project name in docs.
 - commit messages: prefix config changes with `𒀭` when they alter ethical or planetary guardrails.
 - logs: use `𒀭` once per run header to mark a blessed config set. avoid overuse to keep it meaningful.
-
-🟩 done. the lattice now carries the dingir imprint across docs and logs.
