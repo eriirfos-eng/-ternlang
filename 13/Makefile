@@ -71,4 +71,48 @@ def bootstrap_agent():
         raise SystemExit(f"[config] {e}")
     print_seal("validated config set")
     return TernaryLogicAgent(master_docs)
+.PHONY: run-demo-logs tail-logs clean-logs
+
+run-demo-logs:
+	@PYTHONPATH=ternlang/13 $(PY) - << 'PYCODE'
+import os, glob
+from config_io import load_master_docs, ConfigError
+from utils.seal import print_seal
+from utils.jsonl_logger import JSONLLogger
+from ternary_host import TernaryLogicAgent
+
+CONFIG_DIR = os.path.join("ternlang","13","master_docs")
+LOG_DIR = os.path.join("ternlang","13","logs")
+
+try:
+    md = load_master_docs(CONFIG_DIR)
+    print_seal("validated config set")
+except ConfigError as e:
+    raise SystemExit(f"[config] {e}")
+
+logger = JSONLLogger(LOG_DIR)
+agent = TernaryLogicAgent(md, logger=logger)
+packet = {"sensor_readings": {"temp": 25, "pressure": "stable"},
+          "source": "natural fractal",
+          "notes": "bird flock coherence"}
+agent.process_data_stream(packet)
+print(f"[logs] wrote to: {logger.path}")
+PYCODE
+
+tail-logs:
+	@python3 - << 'PYCODE'
+import os, glob
+paths = sorted(glob.glob("ternlang/13/logs/run_*.jsonl"))
+if not paths:
+    raise SystemExit("no log files yet")
+print(paths[-1])
+with open(paths[-1], "r", encoding="utf-8") as f:
+    for i, line in enumerate(f):
+        if i > 50: break
+        print(line.rstrip())
+PYCODE
+
+clean-logs:
+	rm -f ternlang/13/logs/run_*.jsonl
+
 
