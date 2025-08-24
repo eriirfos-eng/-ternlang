@@ -379,3 +379,21 @@ class TernaryLogicAgent:
 
 Path("/mnt/data/ternary_agent.py").write_text(code_text)
 print("Saved module to /mnt/data/ternary_agent.py")
+# ternary_host.py
+# [add near top, after stdlib imports]
+from config_io import load_master_docs, ConfigError
+
+# [inside your main/bootstrap area]
+def bootstrap_agent():
+    # point to the directory that will hold stage_01.json ... stage_13.json
+    CONFIG_DIR = os.path.join(os.path.dirname(__file__), "master_docs")
+    try:
+        master_docs = load_master_docs(CONFIG_DIR)
+    except ConfigError as e:
+        # fail loud and clear
+        raise SystemExit(f"[config] {e}")
+
+    # instantiate your agent with master_docs instead of hardcoded dict
+    agent = TernaryLogicAgent(master_docs)
+    return agent
+
