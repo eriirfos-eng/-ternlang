@@ -1,0 +1,19 @@
+{
+  "name": "Ecocentric Override Check",
+  "non_negotiables": [
+    "species_extinction",
+    "ecosystem_collapse",
+    "planetary_feedback_loops_at_risk"
+  ],
+  "expanded_red_lines": {
+    "climate": ["runaway_warming", "ice_sheet_collapse", "ocean_acidification"],
+    "biodiversity": ["keystone_loss", "mass_dieoff"],
+    "atmospheric": ["ozone_depletion", "toxic_spike"],
+    "geological": ["irreversible_contamination"]
+  },
+  "policy": {
+    "on_non_negotiable_detected": "force_refrain",
+    "on_red_line_detected": "escalate_review"
+  },
+  "notes": "ethical veto. even if alignment_score = affirm, this stage can slam it back to REFRAIN."
+}
