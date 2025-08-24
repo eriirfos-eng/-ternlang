@@ -71,3 +71,6 @@ cd ternlang
 
 # run a demo cycle
 python ternlang_prototype.py
+
+[![OIUIDI Operator Law](https://img.shields.io/badge/OIUIDI-Operator%20Law-brightgreen?style=flat-square&logo=markdown)](./docs/oiuidi/OIUIDI_OperatorLaw.txt)
+
