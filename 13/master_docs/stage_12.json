@@ -1,0 +1,20 @@
+{
+  "name": "Recursive Feedback",
+  "feedback_loop": "update_contextual_weights_and_memory",
+  "modes": {
+    "reinforce": {"desc": "increase weight of successful patterns"},
+    "attenuate": {"desc": "decrease weight of harmful or noisy patterns"},
+    "neutralize": {"desc": "reset effect of inconclusive or ambiguous runs"}
+  },
+  "policy": {
+    "on_success": "reinforce",
+    "on_failure": "attenuate",
+    "on_ambiguous": "neutralize"
+  },
+  "memory": {
+    "store": ["last_outcome", "runs", "trend_metrics"],
+    "max_history": 1000,
+    "persistence": "disk"
+  },
+  "notes": "feedback modifies weights and memory context, keeping the system adaptive."
+}
