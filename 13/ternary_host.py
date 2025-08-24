@@ -1,7 +1,3 @@
-# Let's turn the user's skeleton into a runnable, testable module with sensible defaults.
-# We'll implement triage/weighting/intent mapping, a scalar calculator, and the override logic.
-# We'll also run a couple of demo packets and save the module to '/mnt/data/ternary_agent.py' for download.
-
 import json
 import time
 from typing import Dict, Any, List, Tuple
