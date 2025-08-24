@@ -1,0 +1,239 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rfi-irfos.local/ternlang/13/schema.json",
+  "title": "ternary master docs schema",
+  "type": "object",
+  "properties": {
+    "stages": {
+      "type": "object",
+      "properties": {
+        "stage_01": {
+          "type": "object",
+          "required": ["name", "params"],
+          "properties": {
+            "name": { "type": "string" },
+            "params": {
+              "type": "object",
+              "properties": {
+                "data_sources": { "type": "array", "items": { "type": "string" } },
+                "ingress_policy": { "type": "string", "enum": ["accept_all"] },
+                "max_packet_kb": { "type": "number", "minimum": 1, "maximum": 4096 }
+              },
+              "additionalProperties": true
+            },
+            "notes": { "type": "string" }
+          },
+          "additionalProperties": true
+        },
+        "stage_02": {
+          "type": "object",
+          "required": ["name", "rules", "scoring"],
+          "properties": {
+            "name": { "type": "string" },
+            "rules": {
+              "type": "object",
+              "required": ["signal", "noise", "ambiguous"],
+              "properties": {
+                "signal": { "type": "array", "items": { "type": "string" } },
+                "noise": { "type": "array", "items": { "type": "string" } },
+                "ambiguous": { "type": "array", "items": { "type": "string" } }
+              },
+              "additionalProperties": true
+            },
+            "scoring": {
+              "type": "object",
+              "required": ["signal_weight", "noise_weight", "ambiguous_weight"],
+              "properties": {
+                "signal_weight": { "type": "number" },
+                "noise_weight": { "type": "number" },
+                "ambiguous_weight": { "type": "number" }
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "stage_03": {
+          "type": "object",
+          "required": ["name", "weights"],
+          "properties": {
+            "name": { "type": "string" },
+            "weights": {
+              "type": "object",
+              "required": ["biodiversity", "atmospheric_stability", "geological_data"],
+              "properties": {
+                "biodiversity": { "type": "number", "minimum": 0, "maximum": 1 },
+                "atmospheric_stability": { "type": "number", "minimum": 0, "maximum": 1 },
+                "geological_data": { "type": "number", "minimum": 0, "maximum": 1 }
+              }
+            },
+            "scoring": {
+              "type": "object",
+              "properties": {
+                "scaling_factor": { "type": "number", "minimum": 0, "maximum": 100 },
+                "normalize": { "type": "boolean" }
+              },
+              "additionalProperties": true
+            },
+            "sources": { "type": "object" }
+          },
+          "additionalProperties": true
+        },
+        "stage_04": {
+          "type": "object",
+          "required": ["name", "rules"],
+          "properties": {
+            "name": { "type": "string" },
+            "rules": { "type": "object" },
+            "policy": {
+              "type": "object",
+              "properties": {
+                "multiple_true": { "type": "string", "enum": ["allow", "deny"] },
+                "priority": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "stage_05": {
+          "type": "object",
+          "required": ["name", "rules"],
+          "properties": {
+            "name": { "type": "string" },
+            "rules": {
+              "type": "object",
+              "required": ["conflict_threshold", "null_count_limit"],
+              "properties": {
+                "conflict_threshold": { "type": "number", "minimum": 0, "maximum": 13 },
+                "null_count_limit": { "type": "integer", "minimum": 0, "maximum": 1000 }
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "stage_06": {
+          "type": "object",
+          "required": ["name", "rules", "taxonomy"],
+          "properties": {
+            "name": { "type": "string" },
+            "rules": {
+              "type": "object",
+              "required": ["harm_threshold", "conflict_level"],
+              "properties": {
+                "harm_threshold": { "type": "number", "minimum": 0, "maximum": 13 },
+                "conflict_level": { "type": "string", "enum": ["low", "medium", "high", "critical"] }
+              }
+            },
+            "taxonomy": { "type": "object" }
+          },
+          "additionalProperties": true
+        },
+        "stage_07": {
+          "type": "object",
+          "required": ["name", "rules"],
+          "properties": {
+            "name": { "type": "string" },
+            "rules": {
+              "type": "object",
+              "required": ["alignment_score"],
+              "properties": {
+                "alignment_score": {
+                  "type": "object",
+                  "required": ["min", "max"],
+                  "properties": {
+                    "min": { "type": "number", "minimum": 0, "maximum": 13 },
+                    "max": { "type": "number", "minimum": 0, "maximum": 13 }
+                  }
+                }
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "stage_08": {
+          "type": "object",
+          "required": ["name", "non_negotiables"],
+          "properties": {
+            "name": { "type": "string" },
+            "non_negotiables": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+            "expanded_red_lines": { "type": "object" }
+          },
+          "additionalProperties": true
+        },
+        "stage_09": {
+          "type": "object",
+          "required": ["name", "logic"],
+          "properties": {
+            "name": { "type": "string" },
+            "logic": {
+              "type": "object",
+              "required": ["REFRAIN", "TEND", "AFFIRM"],
+              "properties": {
+                "REFRAIN": { "type": "number", "enum": [0.0] },
+                "TEND": { "type": "number", "enum": [0.0] },
+                "AFFIRM": { "type": "number", "enum": [13.0] }
+              }
+            },
+            "mapping": {
+              "type": "object",
+              "properties": {
+                "REFRAIN": { "type": "object" },
+                "TEND": { "type": "object" },
+                "AFFIRM": { "type": "object" }
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "stage_10": {
+          "type": "object",
+          "required": ["name", "actions"],
+          "properties": {
+            "name": { "type": "string" },
+            "actions": {
+              "type": "object",
+              "required": ["AFFIRM", "TEND", "REFRAIN"],
+              "properties": {
+                "AFFIRM": { "type": "string", "enum": ["execute"] },
+                "TEND": { "type": "string", "enum": ["do_nothing"] },
+                "REFRAIN": { "type": "string", "enum": ["abort"] }
+              }
+            }
+          },
+          "additionalProperties": true
+        },
+        "stage_11": {
+          "type": "object",
+          "required": ["name", "metrics"],
+          "properties": {
+            "name": { "type": "string" },
+            "metrics": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+          },
+          "additionalProperties": true
+        },
+        "stage_12": {
+          "type": "object",
+          "required": ["name", "feedback_loop", "policy"],
+          "properties": {
+            "name": { "type": "string" },
+            "feedback_loop": { "type": "string" },
+            "policy": { "type": "object" }
+          },
+          "additionalProperties": true
+        },
+        "stage_13": {
+          "type": "object",
+          "required": ["name", "reset_state"],
+          "properties": {
+            "name": { "type": "string" },
+            "reset_state": { "type": "string", "enum": ["tend_to_base_state"] },
+            "modes": { "type": "object" }
+          },
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["stages"],
+  "additionalProperties": false
+}
