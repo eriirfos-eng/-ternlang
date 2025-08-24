@@ -402,4 +402,22 @@ def bootstrap_agent():
     packet = {"sensor_readings": {"temp": 25, "pressure": "stable"}, "source": "natural fractal"}
     agent.process_data_stream(packet)
 
+# ternlang/13/ternary_host.py
+from utils.seal import print_seal
+from utils.jsonl_logger import JSONLLogger
+
+def bootstrap_agent():
+    import os
+    from config_io import load_master_docs, ConfigError
+    CONFIG_DIR = os.path.join(os.path.dirname(__file__), "master_docs")
+    LOG_DIR = os.path.join(os.path.dirname(__file__), "logs")
+    try:
+        master_docs = load_master_docs(CONFIG_DIR)
+    except Exception as e:
+        raise SystemExit(f"[config] {e}")
+    print_seal("validated config set")
+
+    logger = JSONLLogger(LOG_DIR)  # creates run_<id>_000.jsonl
+    agent = TernaryLogicAgent(master_docs, logger=logger)
+    return agent
 
