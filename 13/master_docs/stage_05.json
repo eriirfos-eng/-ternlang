@@ -1,0 +1,19 @@
+{
+  "name": "Ambiguity Ping",
+  "rules": {
+    "conflict_threshold": 4.0,
+    "null_count_limit": 5
+  },
+  "scoring": {
+    "levels": {
+      "mild": {"conflict_threshold": 3.0, "action": "log"},
+      "moderate": {"conflict_threshold": 4.0, "action": "revert_to_tend"},
+      "severe": {"conflict_threshold": 5.0, "action": "abort_cycle"}
+    }
+  },
+  "policy": {
+    "on_exceed_nulls": "revert_to_tend",
+    "on_conflict": "revert_to_tend"
+  },
+  "notes": "this stage acts as a stabilizer: if too much ambiguity, collapse wavefunction to TEND."
+}
