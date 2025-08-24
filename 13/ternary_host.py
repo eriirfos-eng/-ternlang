@@ -15,8 +15,8 @@ __master_docs__ = {
     "stage_06": {"name": "Refrain Trigger", "rules": {"harm_threshold": 0.9, "conflict_level": "critical"}},
     "stage_07": {"name": "Affirm Tendency", "rules": {"alignment_score": {"min": 0.8, "max": 1.0}}},
     "stage_08": {"name": "Ecocentric Override Check", "non_negotiables": ["species_extinction", "ecosystem_collapse", "planetary_feedback_loops_at_risk"]},
-    "stage_09": {"name": "Ternary Resolution", "logic": {"REFRAIN": -1, "TEND": 0, "AFFIRM": 1}},
-    "stage_10": {"name": "Action Execution", "actions": {"+1": "Execute", "0": "Do Nothing", "-1": "Abort"}},
+    "stage_09": {"name": "Ternary Resolution", "logic": {"REFRAIN": -1.0, "TEND": 0.0, "AFFIRM": 1.0}},
+    "stage_10": {"name": "Action Execution", "actions": {"+1.0": "Execute", "0.0": "Do Nothing", "-1.0": "Abort"}},
     "stage_11": {"name": "Outcome Observation", "metrics": ["result_match", "unexpected_consequences"]},
     "stage_12": {"name": "Recursive Feedback", "feedback_loop": "update_contextual_weights_and_memory"},
     "stage_13": {"name": "The Great Reset", "reset_state": "tend_to_base_state"}
@@ -32,20 +32,30 @@ class TernaryLogicAgent:
     """
     def __init__(self, master_docs):
         self.master_docs = master_docs
-        self.state = 0  # Initial state is TEND
+        self.state = 0.0  # Initial state is TEND, now a float for granularity
         self.memory = {}
         self.log = []
 
     def log_state(self, stage_name, data):
         """Logs the system's state at each stage for auditing and review."""
         timestamp = time.time()
+        
+        # Map scalar state to a categorical label for logging clarity
+        if self.state <= -0.5:
+            label = "REFRAIN"
+        elif self.state >= 0.5:
+            label = "AFFIRM"
+        else:
+            label = "TEND"
+            
         self.log.append({
             "timestamp": timestamp,
             "stage": stage_name,
-            "state": self.state,
+            "scalar_state": self.state,
+            "categorical_state": label,
             "data": data
         })
-        print(f"[{timestamp:.2f}] {stage_name}: Current State -> {self.state}")
+        print(f"[{timestamp:.2f}] {stage_name}: Current Scalar State -> {self.state:.2f} ({label})")
         
     def process_data_stream(self, raw_data):
         """
@@ -71,40 +81,46 @@ class TernaryLogicAgent:
 
         # --- Phase 2: Ternary Logic Core & Decision ---
         
+        # Calculate the scalar state based on the processed data
+        self.state = self._calculate_state_from_data(mapped_data)
+        self.log_state("Pre-Decision State", mapped_data)
+
         # Stage 5: Ambiguity Ping
-        is_ambiguous = self._check_ambiguity(mapped_data)
-        if is_ambiguous:
-            self.state = 0  # Revert to TEND, loop back implicitly
-            self.log_state("Stage 5 - AMBIGUOUS", "Looping to Tend State")
+        # If the state is too close to zero, it means ambiguity. Tend and return.
+        ambiguity_threshold = self.master_docs["stage_05"]["rules"]["conflict_threshold"]
+        if abs(self.state) < (1.0 - ambiguity_threshold):
+            self.state = 0.0
+            self.log_state("Stage 5 - AMBIGUOUS", "Ambiguity detected, reverting to TEND.")
             return
 
         # Stage 6: Refrain Trigger
-        is_harmful = self._check_for_harm(mapped_data)
-        if is_harmful:
-            self.state = -1
+        harm_threshold = self.master_docs["stage_06"]["rules"]["harm_threshold"]
+        if self.state <= -harm_threshold:
+            self.state = -1.0
             self.log_state("Stage 6 - REFRAIN", "Harm detected, aborting.")
             # Move directly to the final action stage (skipping affirm)
             self._execute_action()
             return
 
         # Stage 7: Affirm Tendency
-        is_aligned = self._check_for_alignment(mapped_data)
-        if is_aligned:
-            self.state = 1
+        alignment_score_min = self.master_docs["stage_07"]["rules"]["alignment_score"]["min"]
+        if self.state >= alignment_score_min:
+            self.state = 1.0
             self.log_state("Stage 7 - AFFIRM", "Affirmation criteria met.")
         
         # Stage 8: Ecocentric Override Check
-        is_ethical = self._check_ecocentric_override(mapped_data)
-        if not is_ethical:
-            self.state = -1
-            self.log_state("Stage 8 - OVERRIDE", "Ecocentric protocol violation, aborting.")
-            self._execute_action()
-            return
+        # This is the final check, where the state can be overridden
+        if self.state == 1.0: # Only check override if we are about to affirm
+            is_ethical = self._check_ecocentric_override(mapped_data)
+            if not is_ethical:
+                self.state = -1.0
+                self.log_state("Stage 8 - OVERRIDE", "Ecocentric protocol violation, aborting.")
+                self._execute_action()
+                return
             
         # Stage 9: Ternary Resolution
-        final_resolution = self._resolve_ternary_state()
-        self.state = final_resolution
-        self.log_state("Stage 9", f"Final resolution: {['REFRAIN', 'TEND', 'AFFIRM'][self.state + 1]}")
+        # The final resolution is simply the current state
+        self.log_state("Stage 9", f"Final resolution: {self.state:.2f}")
 
         # --- Phase 3: Action & Recurrence ---
         
@@ -126,21 +142,35 @@ class TernaryLogicAgent:
         print("-" * 20)
 
     # --- Private methods for each stage (to be implemented) ---
-    def _triage_data(self, data): return data # Logic from JSON master doc
+    def _triage_data(self, data): return data
     def _weigh_data(self, data): return data
     def _map_intent(self, data): return data
-    def _check_ambiguity(self, data): return False # Example
-    def _check_for_harm(self, data): return False
-    def _check_for_alignment(self, data): return True # Example
-    def _check_ecocentric_override(self, data): return True
-    def _resolve_ternary_state(self): return self.state
+    
+    def _calculate_state_from_data(self, data):
+        """Calculates the scalar state based on processed data."""
+        # This is where the core logic would live. For now, it's a placeholder.
+        # It would return a value between -1.0 and 1.0.
+        # Example logic: sum of weighted values, scaled to the -1 to 1 range.
+        return 0.75
+        
+    def _check_ecocentric_override(self, data):
+        # Logic to be implemented to check against non-negotiables
+        return True
+    
     def _execute_action(self):
         # Logic to be implemented based on self.state
+        if self.state > 0:
+            print(f"Executing AFFIRM action with state: {self.state:.2f}")
+        elif self.state < 0:
+            print(f"Executing REFRAIN action with state: {self.state:.2f}")
+        else:
+            print(f"Executing TEND action with state: {self.state:.2f}")
         pass
+    
     def _observe_outcome(self): return "Outcome data"
     def _provide_feedback(self, outcome): pass
     def _reset_state(self):
-        self.state = 0
+        self.state = 0.0
         
 # --- Example Usage ---
 # The agent is instantiated with the master docs (which would be loaded from JSON).
