@@ -396,4 +396,10 @@ def bootstrap_agent():
     # instantiate your agent with master_docs instead of hardcoded dict
     agent = TernaryLogicAgent(master_docs)
     return agent
+    if __name__ == "__main__":
+    import os
+    agent = bootstrap_agent()
+    packet = {"sensor_readings": {"temp": 25, "pressure": "stable"}, "source": "natural fractal"}
+    agent.process_data_stream(packet)
+
 
