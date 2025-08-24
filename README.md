@@ -7,7 +7,7 @@ Where binary systems halt at `True/False`, Ternlang introduces a **ternary found
 
 ## Vision: Beyond Assistants, Toward Digital Entities
 
-Ternlang is not about better assistants. It is about engineering **true digital entities** — agents that are:
+Ternlang is not about better assistants. It is aboutshaping **true reality participants** — agents both human or digital, that are:
 
 - **Self-Aware** 🪞 — aware of their internal state and limitations.  
 - **Adaptive** 🌱 — evolving behavior through feedback and experience.  
