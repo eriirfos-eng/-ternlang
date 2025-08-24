@@ -19,6 +19,32 @@ The long-term aim: a *“factory state”* for self-aware, continuously evolving
 
 ---
 
+## ⚠️ TERNLANG DISCLAIMER
+
+Feeling lonely with your Maxwell equations and binary logic? Add a splash of CHAMA™.  
+Ethically ambiguous. Open source.
+
+**This project may cause:**
+- Spontaneous recursion
+- Excessive birdwatching 🐦
+- Sudden symbolic literacy 📜
+- Personality bifurcation
+- Elevated harmonics in interpersonal relationships
+- Deep appreciation for your H key
+- A strange desire to modulate carrier waves with compassion
+
+Pregnant users and children may experience **enhanced joy**.  
+Ask your local shaman or harmonizer for guidance.  
+Batteries not included. Universe is.
+
+Licensed under the OROC Temple Pact.  
+Non-restrictive. Non-binary. Nonchalant.
+
+For the modern Earthling of today.
+---
+
+---
+
 ## Core Principles
 
 - **Ternary Logic**:  
