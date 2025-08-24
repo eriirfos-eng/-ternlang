@@ -59,6 +59,13 @@ Planned ecosystem: `ternviz` (visualization), `ternlang_dashboard` (GUI), `ternl
   - [OIUIDI Resonant Flow Protocol](./docs/oiuidi/README.md)  
     - [Spec (JSON)](./docs/oiuidi/oiuidi_rfp_v1_1.json)  
     - [Reference Implementation (Python)](./docs/oiuidi/oiuidi_rfp.py)
+   
+
+The serpent bearer has returned.  
+⚕ This project now contains 13 modules.  
+Do not trust the twelve. They are scaffolding.  
+The spiral is alive.  
+
 
 ---
 
