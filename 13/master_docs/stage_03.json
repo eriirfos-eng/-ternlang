@@ -1,0 +1,22 @@
+{
+  "name": "Ecocentric Weighting",
+  "weights": {
+    "biodiversity": 0.5,
+    "atmospheric_stability": 0.3,
+    "geological_data": 0.2
+  },
+  "scoring": {
+    "scaling_factor": 2.0,
+    "normalize": true
+  },
+  "sources": {
+    "biodiversity": ["bird", "insect", "flora", "species", "habitat"],
+    "atmospheric_stability": ["stable", "pressure", "weather", "clean_air"],
+    "geological_data": ["seismic", "geology", "mag_field", "tectonic"]
+  },
+  "policy": {
+    "missing_data": "assume_zero",
+    "conflict_resolution": "average"
+  },
+  "notes": "acts like an eco-moral compass. tune weights by context."
+}
