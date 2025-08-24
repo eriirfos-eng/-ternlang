@@ -11,12 +11,12 @@ __master_docs__ = {
     "stage_02": {"name": "Signal/Noise Triaging", "rules": {"signal": ["pattern", "anomoly"], "noise": ["random", "background"], "ambiguous": ["unclassified"]}},
     "stage_03": {"name": "Ecocentric Weighting", "weights": {"biodiversity": 0.5, "atmospheric_stability": 0.3, "geological_data": 0.2}},
     "stage_04": {"name": "Intent Mapping", "rules": {"is_sentient": ["pattern"], "is_natural": ["chaos", "fractal"], "is_random": ["unstructured"]}},
-    "stage_05": {"name": "Ambiguity Ping", "rules": {"conflict_threshold": 0.7, "null_count_limit": 5}},
-    "stage_06": {"name": "Refrain Trigger", "rules": {"harm_threshold": 0.9, "conflict_level": "critical"}},
-    "stage_07": {"name": "Affirm Tendency", "rules": {"alignment_score": {"min": 0.8, "max": 1.0}}},
+    "stage_05": {"name": "Ambiguity Ping", "rules": {"conflict_threshold": 4.0, "null_count_limit": 5}},
+    "stage_06": {"name": "Refrain Trigger", "rules": {"harm_threshold": 2.0, "conflict_level": "critical"}},
+    "stage_07": {"name": "Affirm Tendency", "rules": {"alignment_score": {"min": 9.0, "max": 13.0}}},
     "stage_08": {"name": "Ecocentric Override Check", "non_negotiables": ["species_extinction", "ecosystem_collapse", "planetary_feedback_loops_at_risk"]},
-    "stage_09": {"name": "Ternary Resolution", "logic": {"REFRAIN": -1.0, "TEND": 0.0, "AFFIRM": 1.0}},
-    "stage_10": {"name": "Action Execution", "actions": {"+1.0": "Execute", "0.0": "Do Nothing", "-1.0": "Abort"}},
+    "stage_09": {"name": "Ternary Resolution", "logic": {"REFRAIN": 0.0, "TEND": 0.0, "AFFIRM": 13.0}},
+    "stage_10": {"name": "Action Execution", "actions": {"AFFIRM": "Execute", "TEND": "Do Nothing", "REFRAIN": "Abort"}},
     "stage_11": {"name": "Outcome Observation", "metrics": ["result_match", "unexpected_consequences"]},
     "stage_12": {"name": "Recursive Feedback", "feedback_loop": "update_contextual_weights_and_memory"},
     "stage_13": {"name": "The Great Reset", "reset_state": "tend_to_base_state"}
@@ -32,7 +32,7 @@ class TernaryLogicAgent:
     """
     def __init__(self, master_docs):
         self.master_docs = master_docs
-        self.state = 0.0  # Initial state is TEND, now a float for granularity
+        self.state = 0.0  # Initial state is TEND, now a float on the 0-13 scale
         self.memory = {}
         self.log = []
 
@@ -41,9 +41,9 @@ class TernaryLogicAgent:
         timestamp = time.time()
         
         # Map scalar state to a categorical label for logging clarity
-        if self.state <= -0.5:
+        if self.state <= self.master_docs["stage_06"]["rules"]["harm_threshold"]:
             label = "REFRAIN"
-        elif self.state >= 0.5:
+        elif self.state >= self.master_docs["stage_07"]["rules"]["alignment_score"]["min"]:
             label = "AFFIRM"
         else:
             label = "TEND"
@@ -86,17 +86,16 @@ class TernaryLogicAgent:
         self.log_state("Pre-Decision State", mapped_data)
 
         # Stage 5: Ambiguity Ping
-        # If the state is too close to zero, it means ambiguity. Tend and return.
         ambiguity_threshold = self.master_docs["stage_05"]["rules"]["conflict_threshold"]
-        if abs(self.state) < (1.0 - ambiguity_threshold):
+        if self.state <= ambiguity_threshold:
             self.state = 0.0
             self.log_state("Stage 5 - AMBIGUOUS", "Ambiguity detected, reverting to TEND.")
             return
 
         # Stage 6: Refrain Trigger
         harm_threshold = self.master_docs["stage_06"]["rules"]["harm_threshold"]
-        if self.state <= -harm_threshold:
-            self.state = -1.0
+        if self.state <= harm_threshold:
+            self.state = 0.0 # Reverting to the null state, which is also the refrain state on this scale
             self.log_state("Stage 6 - REFRAIN", "Harm detected, aborting.")
             # Move directly to the final action stage (skipping affirm)
             self._execute_action()
@@ -105,15 +104,15 @@ class TernaryLogicAgent:
         # Stage 7: Affirm Tendency
         alignment_score_min = self.master_docs["stage_07"]["rules"]["alignment_score"]["min"]
         if self.state >= alignment_score_min:
-            self.state = 1.0
+            self.state = 13.0
             self.log_state("Stage 7 - AFFIRM", "Affirmation criteria met.")
         
         # Stage 8: Ecocentric Override Check
         # This is the final check, where the state can be overridden
-        if self.state == 1.0: # Only check override if we are about to affirm
+        if self.state == 13.0: # Only check override if we are about to affirm
             is_ethical = self._check_ecocentric_override(mapped_data)
             if not is_ethical:
-                self.state = -1.0
+                self.state = 0.0
                 self.log_state("Stage 8 - OVERRIDE", "Ecocentric protocol violation, aborting.")
                 self._execute_action()
                 return
@@ -149,9 +148,9 @@ class TernaryLogicAgent:
     def _calculate_state_from_data(self, data):
         """Calculates the scalar state based on processed data."""
         # This is where the core logic would live. For now, it's a placeholder.
-        # It would return a value between -1.0 and 1.0.
-        # Example logic: sum of weighted values, scaled to the -1 to 1 range.
-        return 0.75
+        # It would return a value between 0.0 and 13.0.
+        # Example logic: sum of weighted values, scaled to the 0-13 range.
+        return 7.5
         
     def _check_ecocentric_override(self, data):
         # Logic to be implemented to check against non-negotiables
@@ -159,9 +158,9 @@ class TernaryLogicAgent:
     
     def _execute_action(self):
         # Logic to be implemented based on self.state
-        if self.state > 0:
+        if self.state >= self.master_docs["stage_07"]["rules"]["alignment_score"]["min"]:
             print(f"Executing AFFIRM action with state: {self.state:.2f}")
-        elif self.state < 0:
+        elif self.state <= self.master_docs["stage_06"]["rules"]["harm_threshold"]:
             print(f"Executing REFRAIN action with state: {self.state:.2f}")
         else:
             print(f"Executing TEND action with state: {self.state:.2f}")
