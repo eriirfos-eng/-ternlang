@@ -1,0 +1,15 @@
+{
+  "name": "Intent Mapping",
+  "rules": {
+    "is_sentient": ["pattern", "agency", "goal", "communication", "feedback"],
+    "is_natural": ["chaos", "fractal", "weather", "organic", "ecosystem"],
+    "is_random": ["unstructured", "noise", "drift"],
+    "is_synthetic": ["artifact", "machine", "engineered", "designed"],
+    "is_artifact": ["manmade", "constructed", "synthetic_trace"]
+  },
+  "policy": {
+    "multiple_true": "allow",
+    "priority": ["is_sentient", "is_natural", "is_synthetic", "is_random", "is_artifact"]
+  },
+  "notes": "baseline intent taxonomy. categories can overlap; priority list resolves conflict."
+}
