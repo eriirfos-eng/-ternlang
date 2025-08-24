@@ -1,0 +1,19 @@
+{
+  "name": "Outcome Observation",
+  "metrics": [
+    "result_match",
+    "unexpected_consequences"
+  ],
+  "extended_metrics": {
+    "impact_score": {"scale": "0-10", "desc": "severity or benefit of action"},
+    "trust_delta": {"scale": "-1 to +1", "desc": "shift in reliability/trust after action"},
+    "latency": {"unit": "ms", "desc": "time between action and observed outcome"},
+    "energy_use": {"unit": "joules", "desc": "estimated resource expenditure"}
+  },
+  "policy": {
+    "on_result_mismatch": "flag_feedback",
+    "on_unexpected_consequences": "flag_critical",
+    "on_high_impact": "trigger_review"
+  },
+  "notes": "the reflection. logs what actually happened vs expectation."
+}
