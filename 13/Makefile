@@ -57,3 +57,18 @@ PYCODE
 
 lint:
 	@echo "lint placeholder. wire ruff or flake8 when you like."
+
+# ternlang/13/ternary_host.py
+from config_io import load_master_docs, ConfigError
+from utils.seal import print_seal
+
+def bootstrap_agent():
+    import os
+    CONFIG_DIR = os.path.join(os.path.dirname(__file__), "master_docs")
+    try:
+        master_docs = load_master_docs(CONFIG_DIR)
+    except ConfigError as e:
+        raise SystemExit(f"[config] {e}")
+    print_seal("validated config set")
+    return TernaryLogicAgent(master_docs)
+
