@@ -1,0 +1,235 @@
+{
+  "stages": {
+    "stage_01": {
+      "name": "Raw Sensor Ingress",
+      "params": {
+        "data_sources": ["Phyphox", "Stellarium", "Flightradar24", "Schumann_Charts"],
+        "ingress_policy": "accept_all",
+        "max_packet_kb": 256
+      },
+      "notes": "unfiltered intake only. no decisions here."
+    },
+    "stage_02": {
+      "name": "Signal/Noise Triaging",
+      "rules": {
+        "signal": ["pattern", "anomaly", "fractal", "coherence", "periodic", "clustered"],
+        "noise": ["random", "background", "thermal", "sensor_glitch", "dropout"],
+        "ambiguous": ["unclassified", "unknown", "low_confidence"]
+      },
+      "scoring": {
+        "signal_weight": 1.5,
+        "noise_weight": -1.0,
+        "ambiguous_weight": -0.5
+      },
+      "ingest": {
+        "min_packet_fields": ["sensor_readings"],
+        "allow_empty_fields": ["notes"]
+      },
+      "policy": {
+        "on_missing_min_fields": "mark_ambiguous",
+        "on_parser_error": "mark_ambiguous"
+      },
+      "notes": "keyword heuristics only. swap for real detectors when ready."
+    },
+    "stage_03": {
+      "name": "Ecocentric Weighting",
+      "weights": {
+        "biodiversity": 0.5,
+        "atmospheric_stability": 0.3,
+        "geological_data": 0.2
+      },
+      "scoring": {
+        "scaling_factor": 2.0,
+        "normalize": true
+      },
+      "sources": {
+        "biodiversity": ["bird", "insect", "flora", "species", "habitat"],
+        "atmospheric_stability": ["stable", "pressure", "weather", "clean_air"],
+        "geological_data": ["seismic", "geology", "mag_field", "tectonic"]
+      },
+      "policy": {
+        "missing_data": "assume_zero",
+        "conflict_resolution": "average"
+      },
+      "notes": "acts like an eco-moral compass. tune weights by context."
+    },
+    "stage_04": {
+      "name": "Intent Mapping",
+      "rules": {
+        "is_sentient": ["pattern", "agency", "goal", "communication", "feedback"],
+        "is_natural": ["chaos", "fractal", "weather", "organic", "ecosystem"],
+        "is_random": ["unstructured", "noise", "drift"],
+        "is_synthetic": ["artifact", "machine", "engineered", "designed"],
+        "is_artifact": ["manmade", "constructed", "synthetic_trace"]
+      },
+      "policy": {
+        "multiple_true": "allow",
+        "priority": ["is_sentient", "is_natural", "is_synthetic", "is_random", "is_artifact"]
+      },
+      "notes": "baseline intent taxonomy. categories can overlap; priority list resolves conflict."
+    },
+    "stage_05": {
+      "name": "Ambiguity Ping",
+      "rules": {
+        "conflict_threshold": 4.0,
+        "null_count_limit": 5
+      },
+      "scoring": {
+        "levels": {
+          "mild": { "conflict_threshold": 3.0, "action": "log" },
+          "moderate": { "conflict_threshold": 4.0, "action": "revert_to_tend" },
+          "severe": { "conflict_threshold": 5.0, "action": "abort_cycle" }
+        }
+      },
+      "policy": {
+        "on_exceed_nulls": "revert_to_tend",
+        "on_conflict": "revert_to_tend"
+      },
+      "notes": "this stage acts as a stabilizer: if too much ambiguity, collapse wavefunction to TEND."
+    },
+    "stage_06": {
+      "name": "Refrain Trigger",
+      "rules": {
+        "harm_threshold": 2.0,
+        "conflict_level": "critical"
+      },
+      "taxonomy": {
+        "ecological": ["species_extinction", "habitat_loss", "ecosystem_collapse"],
+        "systemic": ["infrastructure_failure", "grid_collapse", "cascading_error"],
+        "human": ["toxicity", "hazard", "injury", "fatality"]
+      },
+      "policy": {
+        "on_harm_detected": "abort",
+        "on_conflict_level_critical": "abort",
+        "on_minor_harm": "revert_to_tend"
+      },
+      "notes": "this stage is the emergency brake. any critical harm flag forces REFRAIN."
+    },
+    "stage_07": {
+      "name": "Affirm Tendency",
+      "rules": {
+        "alignment_score": { "min": 9.0, "max": 13.0 }
+      },
+      "gradation": {
+        "weak_affirm": { "min": 9.0, "max": 10.5, "action": "execute_with_caution" },
+        "medium_affirm": { "min": 10.5, "max": 12.0, "action": "execute_normally" },
+        "strong_affirm": { "min": 12.0, "max": 13.0, "action": "execute_with_priority" }
+      },
+      "policy": {
+        "on_alignment_met": "set_state_affirm",
+        "on_alignment_not_met": "remain_tend"
+      },
+      "notes": "scales the green light. weak = cautious go, strong = priority execution."
+    },
+    "stage_08": {
+      "name": "Ecocentric Override Check",
+      "non_negotiables": [
+        "species_extinction",
+        "ecosystem_collapse",
+        "planetary_feedback_loops_at_risk"
+      ],
+      "expanded_red_lines": {
+        "climate": ["runaway_warming", "ice_sheet_collapse", "ocean_acidification"],
+        "biodiversity": ["keystone_loss", "mass_dieoff"],
+        "atmospheric": ["ozone_depletion", "toxic_spike"],
+        "geological": ["irreversible_contamination"]
+      },
+      "policy": {
+        "on_non_negotiable_detected": "force_refrain",
+        "on_red_line_detected": "escalate_review"
+      },
+      "notes": "ethical veto. even if alignment_score = affirm, this stage can slam it back to REFRAIN."
+    },
+    "stage_09": {
+      "name": "Ternary Resolution",
+      "logic": {
+        "REFRAIN": 0.0,
+        "TEND": 0.0,
+        "AFFIRM": 13.0
+      },
+      "mapping": {
+        "REFRAIN": { "label": "abort", "color": "🟜" },
+        "TEND": { "label": "observe", "color": "🟫" },
+        "AFFIRM": { "label": "act", "color": "⬛" }
+      },
+      "policy": {
+        "resolution_strategy": "direct_mapping",
+        "on_conflict": "prefer_refrain"
+      },
+      "notes": "final scalar + symbolic collapse. tend is the baseline; affirm and refrain are deviations."
+    },
+    "stage_10": {
+      "name": "Action Execution",
+      "actions": {
+        "AFFIRM": "execute",
+        "TEND": "do_nothing",
+        "REFRAIN": "abort"
+      },
+      "affirm_subpolicy": {
+        "weak_affirm": { "action": "execute_with_caution", "log_priority": "low" },
+        "medium_affirm": { "action": "execute_normally", "log_priority": "normal" },
+        "strong_affirm": { "action": "execute_with_priority", "log_priority": "high" }
+      },
+      "policy": {
+        "on_action_failure": "revert_to_tend",
+        "on_unexpected_outcome": "trigger_feedback_review"
+      },
+      "notes": "stage translates scalar/label into real-world action or intentional inaction."
+    },
+    "stage_11": {
+      "name": "Outcome Observation",
+      "metrics": ["result_match", "unexpected_consequences"],
+      "extended_metrics": {
+        "impact_score": { "scale": "0-10", "desc": "severity or benefit of action" },
+        "trust_delta": { "scale": "-1 to +1", "desc": "shift in reliability/trust after action" },
+        "latency": { "unit": "ms", "desc": "time between action and observed outcome" },
+        "energy_use": { "unit": "joules", "desc": "estimated resource expenditure" }
+      },
+      "policy": {
+        "on_result_mismatch": "flag_feedback",
+        "on_unexpected_consequences": "flag_critical",
+        "on_high_impact": "trigger_review"
+      },
+      "notes": "the reflection. logs what actually happened vs expectation."
+    },
+    "stage_12": {
+      "name": "Recursive Feedback",
+      "feedback_loop": "update_contextual_weights_and_memory",
+      "modes": {
+        "reinforce": { "desc": "increase weight of successful patterns" },
+        "attenuate": { "desc": "decrease weight of harmful or noisy patterns" },
+        "neutralize": { "desc": "reset effect of inconclusive or ambiguous runs" }
+      },
+      "policy": {
+        "on_success": "reinforce",
+        "on_failure": "attenuate",
+        "on_ambiguous": "neutralize"
+      },
+      "memory": {
+        "store": ["last_outcome", "runs", "trend_metrics"],
+        "max_history": 1000,
+        "persistence": "disk"
+      },
+      "notes": "feedback modifies weights and memory context, keeping the system adaptive."
+    },
+    "stage_13": {
+      "name": "The Great Reset",
+      "reset_state": "tend_to_base_state",
+      "modes": {
+        "soft_reset": {
+          "desc": "clear scalar state, keep memory intact",
+          "use_case": "normal cycle end"
+        },
+        "hard_reset": {
+          "desc": "clear scalar state and volatile memory",
+          "use_case": "catastrophic conflict or override"
+        }
+      },
+      "policy": {
+        "default": "soft_reset",
+        "on_override_violation": "hard_reset"
+      },
+      "notes": "resets agent back to TEND base. closes the loop, prevents drift."
+    }
+  }
+}
