@@ -420,4 +420,5 @@ def bootstrap_agent():
     logger = JSONLLogger(LOG_DIR)  # creates run_<id>_000.jsonl
     agent = TernaryLogicAgent(master_docs, logger=logger)
     return agent
+13√s = m¹³ + (E|F) + E = m + c¹³ + R = 8n|Πr⁴R = R = 8n|Πr⁴
 
