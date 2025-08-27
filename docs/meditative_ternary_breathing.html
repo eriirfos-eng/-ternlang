@@ -6,22 +6,28 @@
   <title>Ternary Breathing</title>
   <!-- Tailwind CDN (JIT) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <!-- prettier font -->
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet" />
   <style>
-    /* Custom keyframes for the HOLD ripple */
-    @keyframes hold-ripple {
-      0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.35); transform: scale(1); }
-      100% { box-shadow: 0 0 0 22px rgba(59,130,246,0); transform: scale(1.08); }
+    :root { --blue: 59,130,246; }
+    .gpu { will-change: transform, opacity; backface-visibility: hidden; transform: translateZ(0); }
+    .ripple {
+      position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;
+      border: 2px solid rgba(var(--blue), 0.35);
+      box-shadow: 0 0 0 0 rgba(var(--blue), 0.0);
     }
   </style>
 </head>
-<body class="min-h-screen bg-gray-900 text-gray-200 antialiased font-[Inter] flex items-center justify-center overflow-hidden">
+<body class="min-h-screen bg-gray-900 text-gray-200 antialiased font-[Manrope] flex items-center justify-center overflow-hidden">
   <main class="w-full max-w-xl px-6 py-10 text-center select-none">
     <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">ternary breathing</h1>
     <p class="mt-2 opacity-80">breathe in, hold, release</p>
 
-    <!-- circle -->
-    <div id="circle" class="mx-auto mt-10 mb-6 rounded-full bg-blue-500 shadow-xl transition-[transform] duration-1000 ease-in-out w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96"></div>
+    <!-- stage wraps circle + ripples -->
+    <div id="stage" class="relative mx-auto mt-10 mb-6 w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96">
+      <div id="circle" class="gpu absolute inset-0 rounded-full bg-blue-500 shadow-xl"></div>
+      <!-- ripples injected by JS -->
+    </div>
 
     <!-- status -->
     <h2 id="status" class="text-xl sm:text-2xl font-semibold opacity-80">press start</h2>
@@ -55,6 +61,7 @@
   </main>
 
   <script>
+    const stage = document.getElementById('stage');
     const circle = document.getElementById('circle');
     const statusText = document.getElementById('status');
     const startBtn = document.getElementById('startBtn');
@@ -62,87 +69,90 @@
     const speedSel = document.getElementById('speed');
 
     let running = false;
-    let phaseTimeout = null;
+    let circleAnim, ripple1Anim, ripple2Anim, rafId;
+    let ripple1, ripple2;
 
-    function clearAnimClasses() {
-      circle.style.animation = '';
-      circle.classList.remove('scale-[1.5]');
-      circle.classList.remove('scale-100');
-      // ensure we have a baseline
-      circle.classList.add('scale-100');
+    function cleanup() {
+      [circleAnim, ripple1Anim, ripple2Anim].forEach(a => a && a.cancel());
+      if (rafId) cancelAnimationFrame(rafId);
+      ripple1 && ripple1.remove();
+      ripple2 && ripple2.remove();
+      ripple1 = ripple2 = null;
+      circle.style.transform = 'scale(0.8)';
+      statusText.textContent = 'press start';
     }
 
-    function phaseIn(duration) {
-      statusText.textContent = 'breathe in (+1)';
-      circle.style.animation = '';
-      circle.classList.add('transition-[transform]');
-      circle.style.transitionDuration = duration + 'ms';
-      circle.classList.add('scale-[1.5]');
-    }
-
-    function phaseHold(duration) {
-      statusText.textContent = 'hold (0)';
-      // custom keyframes via arbitrary animation utility
-      circle.style.animation = `hold-ripple 1s infinite alternate`;
-    }
-
-    function phaseOut(duration) {
-      statusText.textContent = 'breathe out (-1)';
-      circle.style.animation = '';
-      circle.classList.add('transition-[transform]');
-      circle.style.transitionDuration = duration + 'ms';
-      circle.classList.remove('scale-[1.5]');
-      circle.classList.add('scale-100');
-    }
-
-    function runCycle() {
-      if (!running) return;
-      const d = parseInt(speedSel.value, 10);
-
-      // inhale
-      phaseIn(d);
-      phaseTimeout = setTimeout(() => {
-        if (!running) return;
-        // hold
-        phaseHold(d);
-        phaseTimeout = setTimeout(() => {
-          if (!running) return;
-          // exhale
-          phaseOut(d);
-          phaseTimeout = setTimeout(() => {
-            if (!running) return;
-            // loop
-            runCycle();
-          }, d);
-        }, d);
-      }, d);
+    function mkRipple() {
+      const el = document.createElement('div');
+      el.className = 'ripple gpu';
+      stage.appendChild(el);
+      return el;
     }
 
     function start() {
-      if (running) return;
-      running = true;
-      startBtn.disabled = true;
-      stopBtn.classList.remove('hidden');
-      startBtn.textContent = 'running…';
-      clearAnimClasses();
-      runCycle();
+      if (running) return; running = true;
+      startBtn.disabled = true; stopBtn.classList.remove('hidden'); startBtn.textContent = 'running…';
+
+      const phase = parseInt(speedSel.value, 10); // ms per phase
+      const T = phase * 3; // full cycle
+
+      // create ripples
+      ripple1 = mkRipple();
+      ripple2 = mkRipple();
+
+      // main scale animation – continuous, no resets
+      circleAnim = circle.animate([
+        { offset: 0.00, transform: 'scale(0.80)' },      // small
+        { offset: 0.333, transform: 'scale(1.22)' },     // inhale
+        { offset: 0.666, transform: 'scale(1.22)' },     // hold plateau
+        { offset: 1.00, transform: 'scale(0.80)' }       // exhale back
+      ], { duration: T, iterations: Infinity, easing: 'cubic-bezier(.22,.61,.36,1)' });
+
+      // ripples that only run during the hold window via keyframe gating
+      const rippleKF = (startFrac, endFrac) => ([
+        { offset: 0.00, transform: 'scale(1)', opacity: 0 },
+        { offset: Math.max(0.001, startFrac - 0.01), transform: 'scale(1)', opacity: 0 },
+        { offset: startFrac, transform: 'scale(1.0)', opacity: 0.35 },
+        { offset: (startFrac + endFrac)/2, transform: 'scale(1.55)', opacity: 0.18 },
+        { offset: endFrac, transform: 'scale(1.9)', opacity: 0.0 },
+        { offset: 1.00, transform: 'scale(1.9)', opacity: 0 }
+      ]);
+
+      ripple1Anim = ripple1.animate(rippleKF(0.36, 0.54), { duration: T, iterations: Infinity, easing: 'linear' });
+      ripple2Anim = ripple2.animate(rippleKF(0.46, 0.64), { duration: T, iterations: Infinity, easing: 'linear' });
+
+      // status text synced without interrupting animations
+      const step = () => {
+        if (!running) return; // safety
+        const t = circleAnim.currentTime % T;
+        if (t < phase) {
+          statusText.textContent = 'breathe in (+1)';
+        } else if (t < phase * 2) {
+          statusText.textContent = 'hold (0)';
+        } else {
+          statusText.textContent = 'breathe out (-1)';
+        }
+        rafId = requestAnimationFrame(step);
+      };
+      rafId = requestAnimationFrame(step);
     }
 
     function stop() {
       running = false;
-      startBtn.disabled = false;
-      startBtn.textContent = 'start';
-      stopBtn.classList.add('hidden');
-      if (phaseTimeout) clearTimeout(phaseTimeout);
-      clearAnimClasses();
-      statusText.textContent = 'press start';
+      startBtn.disabled = false; startBtn.textContent = 'start'; stopBtn.classList.add('hidden');
+      cleanup();
     }
+
+    // init baseline scale small
+    circle.style.transform = 'scale(0.8)';
 
     startBtn.addEventListener('click', start);
     stopBtn.addEventListener('click', stop);
+    speedSel.addEventListener('change', () => { if (running) { stop(); start(); } });
     window.addEventListener('keydown', (e) => {
-      if (e.key.toLowerCase() === 's') start();
-      if (e.key.toLowerCase() === 'x') stop();
+      const k = e.key.toLowerCase();
+      if (k === 's') start();
+      if (k === 'x') stop();
     });
   </script>
 </body>
