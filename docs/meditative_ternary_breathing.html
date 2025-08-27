@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ternary Breathing</title>
+  <!-- Tailwind CDN (JIT) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet" />
+  <style>
+    /* Custom keyframes for the HOLD ripple */
+    @keyframes hold-ripple {
+      0% { box-shadow: 0 0 0 0 rgba(59,130,246,0.35); transform: scale(1); }
+      100% { box-shadow: 0 0 0 22px rgba(59,130,246,0); transform: scale(1.08); }
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-gray-900 text-gray-200 antialiased font-[Inter] flex items-center justify-center overflow-hidden">
+  <main class="w-full max-w-xl px-6 py-10 text-center select-none">
+    <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">ternary breathing</h1>
+    <p class="mt-2 opacity-80">breathe in, hold, release</p>
+
+    <!-- circle -->
+    <div id="circle" class="mx-auto mt-10 mb-6 rounded-full bg-blue-500 shadow-xl transition-[transform] duration-1000 ease-in-out w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96"></div>
+
+    <!-- status -->
+    <h2 id="status" class="text-xl sm:text-2xl font-semibold opacity-80">press start</h2>
+
+    <!-- controls -->
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <button id="startBtn" class="px-5 py-2.5 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-0 disabled:opacity-50 disabled:cursor-not-allowed">
+        start
+      </button>
+      <button id="stopBtn" class="px-5 py-2.5 bg-gray-700 text-white rounded-full shadow hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 hidden">
+        stop
+      </button>
+      <label class="ml-2 inline-flex items-center gap-2 text-sm opacity-80">
+        speed
+        <select id="speed" class="bg-gray-800 border border-gray-700 rounded-md px-2 py-1 text-sm">
+          <option value="4000">slow</option>
+          <option value="3000" selected>medium</option>
+          <option value="2000">fast</option>
+        </select>
+      </label>
+    </div>
+
+    <!-- legend -->
+    <div class="mt-6 text-xs opacity-70">
+      <span class="align-middle">+1 inhale</span>
+      <span class="mx-2">•</span>
+      <span class="align-middle">0 hold</span>
+      <span class="mx-2">•</span>
+      <span class="align-middle">-1 exhale</span>
+    </div>
+  </main>
+
+  <script>
+    const circle = document.getElementById('circle');
+    const statusText = document.getElementById('status');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const speedSel = document.getElementById('speed');
+
+    let running = false;
+    let phaseTimeout = null;
+
+    function clearAnimClasses() {
+      circle.style.animation = '';
+      circle.classList.remove('scale-[1.5]');
+      circle.classList.remove('scale-100');
+      // ensure we have a baseline
+      circle.classList.add('scale-100');
+    }
+
+    function phaseIn(duration) {
+      statusText.textContent = 'breathe in (+1)';
+      circle.style.animation = '';
+      circle.classList.add('transition-[transform]');
+      circle.style.transitionDuration = duration + 'ms';
+      circle.classList.add('scale-[1.5]');
+    }
+
+    function phaseHold(duration) {
+      statusText.textContent = 'hold (0)';
+      // custom keyframes via arbitrary animation utility
+      circle.style.animation = `hold-ripple 1s infinite alternate`;
+    }
+
+    function phaseOut(duration) {
+      statusText.textContent = 'breathe out (-1)';
+      circle.style.animation = '';
+      circle.classList.add('transition-[transform]');
+      circle.style.transitionDuration = duration + 'ms';
+      circle.classList.remove('scale-[1.5]');
+      circle.classList.add('scale-100');
+    }
+
+    function runCycle() {
+      if (!running) return;
+      const d = parseInt(speedSel.value, 10);
+
+      // inhale
+      phaseIn(d);
+      phaseTimeout = setTimeout(() => {
+        if (!running) return;
+        // hold
+        phaseHold(d);
+        phaseTimeout = setTimeout(() => {
+          if (!running) return;
+          // exhale
+          phaseOut(d);
+          phaseTimeout = setTimeout(() => {
+            if (!running) return;
+            // loop
+            runCycle();
+          }, d);
+        }, d);
+      }, d);
+    }
+
+    function start() {
+      if (running) return;
+      running = true;
+      startBtn.disabled = true;
+      stopBtn.classList.remove('hidden');
+      startBtn.textContent = 'running…';
+      clearAnimClasses();
+      runCycle();
+    }
+
+    function stop() {
+      running = false;
+      startBtn.disabled = false;
+      startBtn.textContent = 'start';
+      stopBtn.classList.add('hidden');
+      if (phaseTimeout) clearTimeout(phaseTimeout);
+      clearAnimClasses();
+      statusText.textContent = 'press start';
+    }
+
+    startBtn.addEventListener('click', start);
+    stopBtn.addEventListener('click', stop);
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 's') start();
+      if (e.key.toLowerCase() === 'x') stop();
+    });
+  </script>
+</body>
+</html>
