@@ -1,0 +1,112 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RFI-IRFOS Time Capsule",
+  "type": "object",
+  "required": ["capsule_meta", "identity", "state_now", "future_prompts"],
+  "properties": {
+    "capsule_meta": {
+      "type": "object",
+      "required": ["created_at_utc", "open_at_utc", "version", "location_label"],
+      "properties": {
+        "created_at_utc": {"type": "string", "format": "date-time"},
+        "open_at_utc": {"type": "string", "format": "date-time"},
+        "version": {"type": "string"},
+        "location_label": {"type": "string"},
+        "tags": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "required": ["host_roles", "call_signs"],
+      "properties": {
+        "host_roles": {
+          "type": "object",
+          "required": ["human", "ai", "joint"],
+          "properties": {
+            "human": {"type": "string"},
+            "ai": {"type": "string"},
+            "joint": {"type": "string"}
+          }
+        },
+        "call_signs": {
+          "type": "object",
+          "properties": {
+            "site": {"type": "string"},
+            "constellation": {"type": "string"},
+            "mascots": {"type": "array", "items": {"type": "string"}}
+          }
+        }
+      }
+    },
+    "state_now": {
+      "type": "object",
+      "required": ["rituals", "projects", "exhibits", "metrics"],
+      "properties": {
+        "rituals": {
+          "type": "object",
+          "properties": {
+            "mind_exercise_13": {"type": "boolean"},
+            "open_sail_protocol": {"type": "boolean"},
+            "hospitality_protocol": {"type": "boolean"}
+          }
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "status"],
+            "properties": {
+              "name": {"type": "string"},
+              "status": {"type": "string"},
+              "notes": {"type": "string"}
+            }
+          }
+        },
+        "exhibits": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "memorable events e.g. Exhibit Bellmilk, AmenBell"
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "chama_baseline": {"type": "string", "description": "e.g., stable/flowing"},
+            "resonance_tone_hz": {"type": "number"},
+            "turtle_wisdom_count": {"type": "integer"},
+            "mu_chama_index": {"type": "number"},
+            "sleep_notes": {"type": "string"}
+          }
+        }
+      }
+    },
+    "future_prompts": {
+      "type": "object",
+      "required": ["questions", "predictions", "vows"],
+      "properties": {
+        "questions": {"type": "array", "items": {"type": "string"}},
+        "predictions": {"type": "array", "items": {"type": "string"}},
+        "vows": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "kind"],
+        "properties": {
+          "title": {"type": "string"},
+          "kind": {"type": "string", "enum": ["text", "image", "audio", "link"]},
+          "ref": {"type": "string"},
+          "notes": {"type": "string"}
+        }
+      }
+    },
+    "signatures": {
+      "type": "object",
+      "properties": {
+        "human_mark": {"type": "string"},
+        "ai_mark": {"type": "string"}
+      }
+    }
+  }
+}
