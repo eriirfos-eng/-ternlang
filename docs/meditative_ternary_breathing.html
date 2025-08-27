@@ -6,10 +6,9 @@
   <title>Ternary Breathing</title>
   <!-- Tailwind CDN (JIT) -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- prettier font -->
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet" />
   <style>
     :root { --blue: 59,130,246; }
+    body { font-family: Arial, sans-serif; }
     .gpu { will-change: transform, opacity; backface-visibility: hidden; transform: translateZ(0); }
     .ripple {
       position: absolute; inset: 0; border-radius: 9999px; pointer-events: none;
@@ -18,13 +17,13 @@
     }
   </style>
 </head>
-<body class="min-h-screen bg-gray-900 text-gray-200 antialiased font-[Manrope] flex items-center justify-center overflow-hidden">
+<body class="min-h-screen bg-gray-900 text-gray-200 antialiased flex items-center justify-center overflow-hidden">
   <main class="w-full max-w-xl px-6 py-10 text-center select-none">
     <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">ternary breathing</h1>
     <p class="mt-2 opacity-80">breathe in, hold, release</p>
 
     <!-- stage wraps circle + ripples -->
-    <div id="stage" class="relative mx-auto mt-10 mb-6 w-48 h-48 sm:w-64 sm:h-64 md:w-80 md:h-80 lg:w-96 lg:h-96">
+    <div id="stage" class="relative mx-auto mt-10 mb-6 w-40 h-40 sm:w-56 sm:h-56 md:w-72 md:h-72 lg:w-80 lg:h-80">
       <div id="circle" class="gpu absolute inset-0 rounded-full bg-blue-500 shadow-xl"></div>
       <!-- ripples injected by JS -->
     </div>
@@ -78,7 +77,7 @@
       ripple1 && ripple1.remove();
       ripple2 && ripple2.remove();
       ripple1 = ripple2 = null;
-      circle.style.transform = 'scale(0.8)';
+      circle.style.transform = 'scale(0.72)';
       statusText.textContent = 'press start';
     }
 
@@ -102,10 +101,10 @@
 
       // main scale animation – continuous, no resets
       circleAnim = circle.animate([
-        { offset: 0.00, transform: 'scale(0.80)' },      // small
-        { offset: 0.333, transform: 'scale(1.22)' },     // inhale
-        { offset: 0.666, transform: 'scale(1.22)' },     // hold plateau
-        { offset: 1.00, transform: 'scale(0.80)' }       // exhale back
+        { offset: 0.00, transform: 'scale(0.72)' },      // small
+        { offset: 0.333, transform: 'scale(1.12)' },     // inhale
+        { offset: 0.666, transform: 'scale(1.12)' },     // hold plateau
+        { offset: 1.00, transform: 'scale(0.72)' }       // exhale back
       ], { duration: T, iterations: Infinity, easing: 'cubic-bezier(.22,.61,.36,1)' });
 
       // ripples that only run during the hold window via keyframe gating
@@ -118,8 +117,8 @@
         { offset: 1.00, transform: 'scale(1.9)', opacity: 0 }
       ]);
 
-      ripple1Anim = ripple1.animate(rippleKF(0.36, 0.54), { duration: T, iterations: Infinity, easing: 'linear' });
-      ripple2Anim = ripple2.animate(rippleKF(0.46, 0.64), { duration: T, iterations: Infinity, easing: 'linear' });
+      ripple1Anim = ripple1.animate(rippleKF(0.34, 0.54), { duration: T, iterations: Infinity, easing: 'linear' });
+      ripple2Anim = ripple2.animate(rippleKF(0.44, 0.64), { duration: T, iterations: Infinity, easing: 'linear' });
 
       // status text synced without interrupting animations
       const step = () => {
@@ -144,7 +143,7 @@
     }
 
     // init baseline scale small
-    circle.style.transform = 'scale(0.8)';
+    circle.style.transform = 'scale(0.72)';
 
     startBtn.addEventListener('click', start);
     stopBtn.addEventListener('click', stop);
