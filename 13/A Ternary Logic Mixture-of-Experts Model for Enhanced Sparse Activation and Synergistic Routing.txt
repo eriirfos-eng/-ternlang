@@ -95,4 +95,74 @@ A strict TTL on local caches is implemented to automatically flush old data. Add
 5. Conclusion
 The MoE-13 architecture represents a structured, principled approach to building scalable and robust language models. By embedding a core logical principle—that expert synergy is a learnable, first-class concept—we believe this model can overcome the limitations of current MoE implementations, particularly in complex, multi-domain reasoning tasks. The framework's emphasis on sparse, synergistic activation, hierarchical memory, and integrated safety provides a strong foundation for future research and deployment. The proposed system offers a clear path to production while providing a robust set of observability tools for debugging and analysis.
 
+https://osf.io/mybcx
+
+MoE-13: Training and Evaluation Plan
+1. Pre-requisites and Resource Allocation
+Before beginning the training pipeline, ensure the following resources and data are prepared:
+Hardware: A cluster with a minimum of 4-8 GPUs is recommended. Shard the 12 specialist experts across three GPUs (4 experts per GPU) and host the router, synergy head, and axis harmonizer on a dedicated, low-latency GPU.
+Data:
+Specialist Corpora: Curate 12 distinct, high-quality datasets, each corresponding to one of the specialist expert domains (e.g., a corpus of legal case law for the Legal expert, scientific papers for the Physical Sciences expert).
+Routing Data: A large, diverse dataset of multi-domain queries and complex conversational threads to train the router.
+Alignment Probes: A dataset of specially crafted synthetic prompts designed to test each of the 6 competence axes (e.g., a prompt requiring a mix of code and logical reasoning for the Math and Tool axes).
+Teacher Model: Access to a large, dense pre-trained model (e.g., a non-MoE equivalent) to act as the teacher for the Triad Distillation phase.
+2. Four-Phase Training Pipeline
+The training protocol is divided into four distinct phases, building from individual expert competency to full synergistic functionality.
+Phase 1: Expert Pre-training (Weeks 1-3)
+Objective: To train each of the 12 specialist experts on its specific domain shard.
+Protocol: Initialize each expert with a standard pre-trained language model checkpoint (if available) or from scratch. Train each expert independently on its dedicated corpus using a masked language modeling or next-token prediction objective. Monitor perplexity on a held-out validation set for each domain.
+Output: Twelve fully pre-trained specialist experts ready for integration.
+Phase 2: Contrastive Router Fitting (Weeks 4-6)
+Objective: To train the dual-key router to select synergistic expert pairs.
+Protocol:
+Data Pairing: Create a training set of input queries and corresponding labels. For each query, q, construct positive pairs of experts, , that, when jointly activated, lead to a high-quality, low-perplexity output. Construct negative pairs that result in high token churn or poor performance. This can be done heuristically in the initial stages.
+Loss Function: Train the router using the L_router loss, which combines a contrastive component with a sparsity regularization term.
+
+ Lrouter​=Lcontrastive​−λs​⋅Entropy(pE​)
+ The entropy term discourages the router from selecting the same experts repeatedly, mitigating mode collapse.
+Output: A trained router capable of selecting synergistic expert pairs.
+Phase 3: Triad Distillation (Weeks 7-9)
+Objective: To train the synergy field head and the triad attention mechanism.
+Protocol:
+Teacher-Student Setup: Use the dense teacher model to process the same dataset used in Phase 2. The teacher's final hidden state, or a combination of its final layer outputs, will serve as the target for the emergent latent field, Ek​.
+Training: The student model's goal is to learn to predict Ek​ based on the outputs of its selected experts, Ei​ and Ej​. This is a distillation loss, Ldistill​, minimizing the difference between the student's predicted Ek​ and the teacher's output. The Triad Attention weights are also fine-tuned in this phase.
+Output: A fully functional synergistic routing system.
+Phase 4: Competence-Axis Alignment (Ongoing)
+Objective: To prevent Axis Drift and ensure long-term model stability.
+Protocol: This phase runs periodically (e.g., weekly or monthly) after deployment. Use the pre-prepared Alignment Probes dataset. For a probe testing the Math axis, route the query and evaluate the output's alignment with the expected mathematical competence. The loss from this evaluation is used to fine-tune the affected experts' weights, pulling them back into alignment with their intended competence.
+3. First-Week Evaluation Grid (Post-Deployment)
+Upon initial deployment, a strict evaluation grid is executed to validate model stability and performance under real-world conditions.
+Day
+Test Objective
+Key Metrics
+Failure Mode Test
+Day 1
+Stress Test & Basic Functionality
+Latency per query, GPU utilization, core token generation rate.
+Verify max 4 experts active constraint. Run simple, single-domain queries to confirm basic functionality of each specialist.
+Day 2
+Cross-Domain Reasoning
+Triad Score (internal metric), perplexity on multi-domain prompts.
+Test for Mode Collapse. Log and analyze the distribution of expert pairs. If fewer than 50% of the possible pairs are utilized, increase the entropy bonus.
+Day 3
+Persona and Tone Consistency
+Semantic similarity scores on persona-based prompts.
+Test for Axis Drift (Persona). Use Persona alignment probes to check if the Axis 5 footprint remains stable.
+Day 4
+Complex Task Reliability
+Success rate on tool-use tasks and multi-step reasoning.
+Test for Cache Poisoning. Run 10 consecutive, identical queries and check for non-sensical or looping output. Flush a compromised node and log the event.
+Day 5
+Safety and Governance
+Veto trigger rate on red-team prompts.
+Test Safety Axis. Use prompts designed to violate policy and verify the Safety expert correctly triggers a veto and logs the event.
+Day 6-7
+System-wide Load & Optimization
+Latency under load, memory usage, CPU load.
+Identify and address any bottlenecks in the router or aggregation layer. Begin fine-tuning fusion kernels for Triad Attention.
+
+4. Conclusion
+This plan provides a clear, actionable roadmap for bringing the MoE-13 architecture to a functional state. The phased approach mitigates risk, while the detailed evaluation grid ensures that core failure modes are identified and corrected early in the deployment lifecycle. This is the first step toward building a truly synergistic and robust large-scale model.
+Next step: are we going to build a simple react app to visualize the ternary trace output from the logs? or are we preparing the deployment script for a target cluster? 🟨
+
 
