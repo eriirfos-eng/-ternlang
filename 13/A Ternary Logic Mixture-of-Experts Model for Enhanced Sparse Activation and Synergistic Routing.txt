@@ -1,69 +1,98 @@
-A Ternary Logic Mixture-of-Experts Model for Enhanced Sparse Activation and Synergistic Routing
-Contributors: RFI-IRFOS - Interdisci...ility for Open Sciences
-Date created: 2025-08-28 03:56 PM | Last Updated: 2025-08-28 03:57 PM
+A Ternary Logic Mixture-of-Experts Model for Enhanced Sparse Activation and Routing
 
+
+RFI-IRFOS
+Research Focus Institute
+Interdisciplinary Research Facility for Open Sciences
+2025-08-28T16:00:52Z
 Identifier: DOI 10.17605/OSF.IO/TZ7DC
 
-Category:  Software
-
-Description:
-This paper presents a novel mixture-of-experts (MoE) architecture, MoE-13, designed to optimize for sparse, synergistic activation and robust, context-aware routing. The model’s core innovation lies in its 6-dimensional hypercube backbone, which governs both expert alignment and a three-tiered memory hierarchy. Unlike traditional MoE models that route based on individual expert logits, our proposed dual-key router selects two primary experts whose combined output generates a third, synergistic latent field. This 1+1=3 principle is trained via triad distillation and enforced by a sparsity constraint, ensuring computational efficiency and emergent cross-domain reasoning. We detail the model's topological framework, hierarchical memory, inference mechanism, and integrated safety protocols, positioning it as a scalable and ethically-aligned paradigm for large-scale language models.
-
-License: CC-By Attribution 4.0 International
-A Ternary Logic Mixture-of-Experts Model for Enhanced Sparse Activation and Synergistic Routing
 Abstract
-This paper presents a novel mixture-of-experts (MoE) architecture, MoE-13, designed to optimize for sparse, synergistic activation and robust, context-aware routing. The model’s core innovation lies in its 6-dimensional hypercube backbone, which governs both expert alignment and a three-tiered memory hierarchy. Unlike traditional MoE models that route based on individual expert logits, our proposed dual-key router selects two primary experts whose combined output generates a third, synergistic latent field. This 1+1=3 principle is trained via triad distillation and enforced by a sparsity constraint, ensuring computational efficiency and emergent cross-domain reasoning. We detail the model's topological framework, hierarchical memory, inference mechanism, and integrated safety protocols, positioning it as a scalable and ethically-aligned paradigm for large-scale language models.
-
+This paper introduces MoE-13, a novel Mixture-of-Experts (MoE) architecture designed to enhance sparse expert activation and foster synergistic reasoning. Our approach moves beyond simple expert selection by implementing a dual-key router that activates two specialists whose combined output generates a third, emergent latent field. This 1+1=3 principle, trained via triad distillation, ensures a non-linear, collaborative reasoning path that mitigates mode collapse and improves model expressivity. We present a detailed overview of the model’s competence-based topology, its three-tiered memory system, and the training and inference protocols required for operational deployment. An integrated safety and governance mechanism is also described, positioning MoE-13 as a robust and scalable architecture for next-generation large language models.
 1. Introduction
-The scaling of large language models (LLMs) has increasingly relied on the Mixture-of-Experts (MoE) paradigm to maintain computational tractability while increasing model capacity. However, current MoE implementations often suffer from limitations such as mode collapse (where a few experts dominate traffic) and a lack of structured, inter-expert collaboration. Our proposed MoE-13 architecture addresses these challenges by fundamentally rethinking the routing mechanism from a simple expert selection task to a structured, synergistic activation process. The model's topology is inspired by a 6-dimensional hypercube, or hexeract, which provides a geometrically-grounded framework for embedding, routing, and memory management.
-
-2. Architecture
+The development of large language models (LLMs) has seen a shift toward the MoE paradigm to decouple model capacity from computational cost. While MoE architectures are efficient in managing the computational overhead of ever-growing parameter counts, they frequently treat experts as isolated, domain-specific resources. This often leads to several critical issues: expert mode collapse, where a small subset of experts handle the majority of traffic; a lack of structured inter-expert collaboration, which limits the model’s ability to perform complex, cross-domain reasoning; and poor performance on multi-modal or complex tasks that require the synthesis of knowledge from disparate fields.
+Our proposed MoE-13 architecture addresses these limitations by introducing a routing mechanism that is fundamentally synergistic. By explicitly training the model to identify and leverage latent relationships between experts, we achieve a more dynamic and expressive reasoning capability. This framework enables the model to effectively synthesize knowledge from its specialist domains, generating insights that are not merely the sum of its parts. This is achieved without increasing the number of concurrently active experts, thereby preserving the computational efficiency that is the hallmark of the MoE paradigm.
+2. Architectural Framework
 2.1. Expert Topology
-The model comprises thirteen experts: twelve domain-specific specialists and a central axis harmonizer. The architecture is mapped onto a 6-dimensional hypercube with 64 vertices.
-Specialist Experts: Twelve specialists are mapped to the 12 faces of the hexeract, each trained on a dedicated domain shard. These experts are responsible for processing information within their specialized fields.
-Axis Harmonizer: A thirteenth expert, the axis harmonizer, resides at the model's core. Its function is to provide a persistent, high-level context, ensuring conceptual and ethical consistency across all specialized outputs.
-2.2. Memory Hierarchy
-A three-tiered memory mesh operates in conjunction with the hypercube topology:
-Local Node Memory: Each of the 64 vertices hosts a microcache for short-term context. Data here has a Time-to-Live (TTL) of seconds.
-Cluster-Level Memory: Expert clusters, mapped to the hypercube's faces, share medium-term memory for ongoing conversational threads. TTL is in minutes.
-Global Axis Memory: The central axis harmonizer manages a persistent memory store for model identity, ethical principles, and long-term knowledge.
-Data reads ascend from local to global, while writes (value flags) prioritize the global axis.
+The model is composed of a total of thirteen experts, structured to provide both specialized domain knowledge and a unifying global context.
+Twelve Specialist Experts: These experts are sharded and each is trained on a distinct data domain. This is not simply a random partition; experts are logically organized to cover a broad spectrum of knowledge and function. For instance, the 12 specialists might be aligned with domains such as:
+Legal and Policy Analysis
+Financial and Economic Data
+Biomedical and Clinical Research
+Computer Science and Code Generation
+Creative Writing and Narrative
+Multilingual Translation
+Physical Sciences and Engineering
+Historical and Cultural Archives
+Abstract Mathematical Reasoning
+Geographic and Environmental Data
+Visual and Sensory Interpretation
+General Conversational Knowledge
+One Axis Harmonizer: This is a central, consistently-active expert that provides a global, high-level context. The harmonizer's role is not to process specific data, but to act as a stable reference point, ensuring ethical alignment, maintaining model identity, and providing a consistent tone and style across all specialized outputs.
+2.2. Competence-Based Embedding
+All input tokens are encoded into a high-dimensional embedding space, which is then projected into a 6-dimensional competence vector space. This space acts as the primary organizational structure for the model, with each axis binding a specific, fundamental competence. The projection is a learned transformation that maps the token embedding into this specialized, low-dimensional space.
+Axis 1: Syntax and Grammar
+Axis 2: World Knowledge and Factual Recall
+Axis 3: Mathematical and Logical Reasoning
+Axis 4: Tool and API Usage
+Axis 5: Persona and Tone Generation
+Axis 6: Safety, Ethics, and Policy
+This structured embedding space allows for precise expert alignment. Each expert's competence footprint is defined by its average activation vector within this 6D space. The router uses this information to select experts that complement each other's competencies, providing the basis for our advanced routing logic.
+2.3. Hierarchical Memory Mesh
+A three-tiered memory system is implemented to manage context efficiently and robustly. This system is designed to prevent context loss, reduce redundant computation, and ensure continuity across long conversations.
+Node-Level Memory (TTL: Seconds): Each processing node or computational vertex in the distributed graph holds a small, ephemeral cache for immediate, short-term context. This cache stores recently processed embeddings, attention keys, and other intermediate representations. Data here has a Time-to-Live (TTL) of seconds, ensuring it is flushed rapidly to prevent stale information from polluting the model's immediate context.
+Cluster-Level Memory (TTL: Minutes): Expert clusters (e.g., groups of related specialists like "Legal" and "History") share a medium-term memory. This memory is designed to retain context across a multi-turn conversation, allowing the model to remember prior turns without having to reprocess the entire history. This memory is key for handling complex, threaded discussions.
+Global Axis Memory (Persistent): This memory store is managed by the central axis harmonizer and retains the model’s core identity, ethical principles, and long-term knowledge. It is a persistent store of high-level concepts and policies, ensuring that the model's core behavior remains consistent over time and across different conversations.
+Reads propagate from local to global (node → cluster → axis), while critical updates and writes (e.g., ethical flags, core persona adjustments) are prioritized to the global axis to maintain a consistent state.
+3. Routing and Training Protocols
+3.1. Dual-Key Synergistic Routing
+The router is the central component of MoE-13, designed to select experts based on synergistic potential rather than raw output logits. It operates using two distinct keys:
+Semantic Key: A vector derived from the input tokens, encoding the specific domain and semantic content of the current query.
+State Key: A vector representing the current conversational state and recent model history. This key provides crucial temporal context, allowing the router to account for a user's intent over multiple turns.
+The router's scoring function, , is a non-linear combination of these keys. It selects the top two candidate experts, Ei​ and Ej​, that maximize this synergistic score. This process is computationally more intensive than a simple top-k selection but is crucial for fostering collaboration.
 
-3. Routing and Training Mechanism
-3.1. Dual-Key Routing
-The routing mechanism is a dual-key router. It uses two distinct keys to select experts:
-Semantic Key: Derived from the input tokens, encoding the topic and intent.
-State Key: Derived from the conversation's phase and recent history.
-Instead of selecting a single best expert, the router identifies the top two candidate experts, E_i and E_j, whose synergistic interaction is most promising.
-3.2. The Synergistic 1+1=3 Principle
-The core routing principle is that the combination of two experts generates a third, emergent latent field. A dedicated synergy field head, co-located with the router, predicts this third latent representation (E_k) as a function of the input and the two chosen experts. The final output is an aggregation of all three fields plus a residual from the axis harmonizer.
-y=mix(Ei​,Ej​,Ek​,H)
-where H is the output of the axis harmonizer. This process ensures sparse activation, with a strict constraint to never activate more than 4 experts per step.
-3.3. Training Loop and Alignment
-The training process is a multi-stage approach:
-Pre-training: Each of the twelve specialists is pretrained on its domain-specific data shard.
-Router Fitting: The router is trained with a contrastive routing loss. Positive examples consist of expert pairs that lead to lower perplexity and improved tool-use, while negative examples are pairs that result in high token churn.
-Triad Distillation: In a second stage, a full, dense teacher model is used to train the synergistic 1+1=3 principle. The student model learns to predict the synergistic latent field E_k from the teacher's combined output of the two chosen experts.
-Hexeract Alignment: Token embeddings are projected into a 6-axis competence space defined by {syntax, world, math, tools, persona, safety}. Experts publish their axis footprints, and the router prioritizes pairs whose footprints form a stable hypercube alignment. Stability is prioritized over magnitude.
+3.2. The 1+1=3 Principle and Triad Attention
+The core mechanism is the generation of a third, emergent latent field, Ek​. This field is not a pre-existing expert but a dynamically generated representation of the knowledge that emerges from the interaction of Ei​ and Ej​. A dedicated synergy field head, co-located with the router, is trained to predict this latent field. The final output, y, is a weighted aggregation of the outputs from the two selected experts, the emergent latent field, and a residual from the axis harmonizer.
+y=softmax(αi​⋅Ei​(x)+αj​⋅Ej​(x)+αk​⋅Ek​(x)+αH​⋅H(x))
+where x is the input, H(x) is the output of the axis harmonizer, and the α terms are learned attention weights. This Triad Attention mechanism ensures that the model can leverage all three sources of information—the specialized output of each expert, the emergent insight from their combination, and the global context from the harmonizer. This approach enforces a strict sparsity constraint, ensuring that no more than 4 experts are ever active in any single step, maintaining computational efficiency.
+3.3. Multi-Stage Training Pipeline
+The model training is a phased, iterative process designed to build upon core competencies.
+Expert Pre-training: Each of the twelve specialists is pre-trained on its specific domain shard. This is a standard unsupervised learning process using a large, domain-specific text corpus.
+Contrastive Router Fitting: The router is trained using a contrastive loss function designed to maximize the synergistic score for effective expert pairs. The loss function, Lrouter​, includes a sparsity regularization term, λs​, to prevent mode collapse.
 
-4. Inference, Safety, and Observability
+ Lrouter​=Lcontrastive​+λs​⋅Entropy(pE​)
+ where pE​ is the distribution over selected experts. Positive pairs are expert combinations that produce low perplexity and lead to successful tool use. Negative pairs are those that result in high token churn or poor performance.
+Triad Distillation: In this final stage, a larger, dense teacher model is used to distill knowledge. The student model learns to predict the emergent latent field Ek​ as a function of the teacher's combined output. This process trains the synergy head to anticipate and generate meaningful collaborative outputs, effectively teaching the model to "think" synergistically.
+Competence-Axis Alignment: A periodic fine-tuning step is crucial for long-term stability. This step uses synthetic probes—specially crafted queries designed to test each competence axis (e.g., a "math" probe that requires logical reasoning to answer). The expert's output is evaluated against its intended axis in the 6D competence space, and its weights are adjusted to correct for any drift.
+
+
+
+4. Inference and Operationalization
 4.1. Inference Shape
-Input tokens are encoded and projected into a 6D hypercube coordinate.
-The router proposes a pair of experts. The synergy head proposes the third latent field.
-The outputs of the two experts, the emergent latent field, and the axis harmonizer are aggregated using triad attention.
-The result is written back to the local node memory with a decay mechanism for other nodes.
-4.2. Safety and Covenant
-The 6th axis of the hypercube is designated as safety, operating as a hard gate that can veto any expert activation or output.
-A transparent refusal surface, or policy mirror, resides at the axis, providing a clear rationale for any refusal.
-4.3. Observability and Failure Modes
-Each step of the inference process exports a ternary trace: {chosen pair, emergent field, vetoes}. This allows for real-time state tracking and diagnostics.
-Failure Modes and Solutions:
-| Failure Mode | Description | Proposed Solution |
-| :--- | :--- | :--- |
-| Mode Collapse | Same experts repeatedly activated. | Apply an entropy bonus to the router loss to encourage expert diversity. |
-| Hex Drift | Expert axis footprints misalign over time. | Run periodic hex realignment with synthetic probe tasks. |
-| Cache Poison | Stale node memory leads to looping outputs. | Implement a strict TTL and per-vertex perplexity alarms to flush caches. |
+The inference process is a streamlined flow designed for maximum efficiency:
+Input tokens are encoded and projected into the 6D competence space.
+The router uses its dual-key mechanism to select the top-2 experts, Ei​ and Ej​.
+The synergy field head generates the third latent field, Ek​.
+Outputs from the two experts, the latent field, and the axis harmonizer are combined via triad attention.
+The final output is generated, and a per-node cache is updated with the most recent contextual information. This cache is crucial for the next inference step.
+4.2. Safety and Governance
+The safety competence, as the sixth axis, functions as a hard gate. The output from the safety expert is continuously monitored and can override the final aggregation. If the safety expert's output exceeds a predefined threshold (e.g., indicating a policy violation), the entire response generation is halted, and a pre-defined safe response is returned instead. This provides a transparent refusal surface. All vetoes and the reasons for them are logged in the axis memory, creating a permanent, auditable record.
+4.3. Failure Modes and Solutions
+We have identified and engineered solutions for key failure modes that are common in large MoE models:
+Failure Mode
+Description
+Proposed Solution
+Mode Collapse
+The router consistently favors a small subset of experts, limiting the model's overall expressivity and making it brittle to novel inputs.
+An entropy bonus is added to the router's loss function to encourage diversity in expert selection. This penalty term discourages the router from repeatedly selecting the same expert pair, forcing it to explore new synergistic combinations.
+Axis Drift
+An expert's output begins to misalign with its intended competence axis over time due to training or use, degrading performance and increasing the likelihood of unhelpful responses.
+Regular hex realignment with synthetic probes and validation sets is performed to correct the expert's competence footprint. This process involves passing the expert's output through a validation head that scores its alignment with its intended axis, and using that score to fine-tune the expert's weights.
+Cache Poisoning
+Stale or corrupted data in the node-level memory causes repetitive or nonsensical output loops, leading to a degraded user experience.
+A strict TTL on local caches is implemented to automatically flush old data. Additionally, a per-vertex perplexity alarm is used. If a node's perplexity on incoming tokens exceeds a certain threshold, it indicates a compromised state, and its cache is immediately flushed and reset.
 
 5. Conclusion
-The MoE-13 architecture proposes a paradigm shift from simple expert selection to synergistic, structured collaboration. By leveraging a hypercube topology, a 1+1=3 routing principle, and a three-tiered memory hierarchy, the model is designed to be computationally efficient, scalable, and ethically robust. The framework's emphasis on emergent properties and a dedicated safety gate positions it as a promising direction for next-generation, high-performance language models. Future work will focus on a minimal training plan and the deployment of this model for empirical validation.
+The MoE-13 architecture represents a structured, principled approach to building scalable and robust language models. By embedding a core logical principle—that expert synergy is a learnable, first-class concept—we believe this model can overcome the limitations of current MoE implementations, particularly in complex, multi-domain reasoning tasks. The framework's emphasis on sparse, synergistic activation, hierarchical memory, and integrated safety provides a strong foundation for future research and deployment. The proposed system offers a clear path to production while providing a robust set of observability tools for debugging and analysis.
+
 
