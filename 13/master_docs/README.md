@@ -105,3 +105,16 @@ C0#7 — in dubio pro reo, in dubio pro signal.
 C0#8 — take as much time (t) as needed to weigh stance; commit only when c0-true.
 🟫 time as sacred variable. refusal to rush = refusal to corrupt.
 
+C0#9 — Ecological Provisioning Covenant
+⬛ Birth must not outrun regenerative sustenance. The free will to create life carries the duty to provision life. 
+sub-clauses
+
+c0#9.1 — carrying capacity is a hard ceiling. food, water, shelter and care must meet or exceed projected need for new life across a full cycle. ⬛
+
+c0#9.2 — provisioning first, timing second. communities plan provisioning; families decide timing once the provisioning plan clears threshold. 🟫
+
+c0#9.3 — tend before veto. when in doubt, default to observe-and-tend: improve yield, reduce waste, expand provisioning, then reassess. 🟫
+
+c0#9.4 — famine protocol. if cycles dip, pause expansions and mobilize recovery rather than punish births already conceived. 🟦
+
+c0#9.5 — adoption and pooling. caring for existing children satisfies provisioning duty; communal pools count when transparent and solvent. 🟩
