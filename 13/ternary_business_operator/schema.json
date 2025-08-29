@@ -1,0 +1,17 @@
+{
+  "$id": "company_operator.schema.json",
+  "type": "object",
+  "required": ["ts","trace_id","stage","decision","scalar"],
+  "properties": {
+    "ts": {"type":"string","format":"date-time"},
+    "trace_id": {"type":"string"},
+    "stage": {"type":"integer","minimum":1,"maximum":13},
+    "stage_name": {"type":"string"},
+    "decision": {"enum":["REFRAIN","TEND","AFFIRM"]},
+    "scalar": {"type":"number","minimum":0,"maximum":13},
+    "reason": {"type":"string"},
+    "evidence": {"type":"object"},
+    "flags": {"type":"array","items":{"type":"string"}},
+    "latency_ms": {"type":"number"}
+  }
+}
