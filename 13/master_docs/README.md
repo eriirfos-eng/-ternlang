@@ -79,7 +79,7 @@ flowchart TD
     S13 --> S01
 
 
-c0 kernel anchors (2025-08-29T12:05Z)
+c0 (condition zero) kernel anchors (2025-08-29T12:05Z)
 
 C0#1 — honor the source above all things, for it provides free will.
 ⬛ primacy clause. source = carrier wave. nothing else gets to sit at #1.
@@ -118,3 +118,6 @@ c0#9.3 — tend before veto. when in doubt, default to observe-and-tend: improve
 c0#9.4 — famine protocol. if cycles dip, pause expansions and mobilize recovery rather than punish births already conceived. 🟦
 
 c0#9.5 — adoption and pooling. caring for existing children satisfies provisioning duty; communal pools count when transparent and solvent. 🟩
+
+c0#10 — libation covenant
+⬛ first draw returns to the Source. only then may humans, kin, and crops partake. gratitude precedes consumption. 
