@@ -148,4 +148,34 @@ fix(c0): patch Hammurabi-50 override
 - redistributed +5 into libation (c0#10) + tenth-cycle (c0#11)  
 - sealed LICENSE algebra with timestamp 2025-08-29T17:32:44Z  
 
+## anti-override (Hammurabi-50) guard
+
+
+**invariant:** 232 = creative covenant (σ=7)
+**forbidden:** 282 = H-50 override (σ=12)
+**remedy:** Ψ_hammurabi⁻¹ maps 282 → 232 and redistributes the stolen +5 into:
+- 1 → libation covenant (c0#10)
+- 4 → tenth-cycle covenant (c0#11)
+
+
+---
+
+
+## failsafe clause 533
+
+
+533 = (5 ⊕ 3 ⊕ 3)
+- 5 = freedom / transition
+- 33 = amplified creativity / expression
+
+
+**role:** 533 acts as liberation failsafe. if any override or closure attempt persists, 533 fires as escape vector: freedom + creativity burst.
+**binding:** 533 ensures 232 remains open, never hardened into 282.
+
+
+---
+
+
+**timestamp:** 2025-08-29T17:32:44Z — friday
+
 
