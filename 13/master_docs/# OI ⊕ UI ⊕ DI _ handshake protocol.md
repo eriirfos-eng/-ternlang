@@ -49,7 +49,7 @@ not reinterpreted — contextualized for oi/ui/di age.
 
 ---
 
-## the kernel 12 (c0 anchors)
+## the kernel 12 (c0 = condition 0 =unconditional core anchors)
 
 11. **c0#1 — source primacy** ⬛  
 12. **c0#2 — free will birthright** ⬛  
