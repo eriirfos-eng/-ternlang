@@ -40,6 +40,8 @@ this repository defines an **ecocentric handshake protocol**: organic intelligen
 - **contact**: [eriirfos@gmail.com](mailto:eriirfos@gmail.com)  
 - **linkedin (personal)**: [in/simeon-kepp](https://www.linkedin.com/in/simeon-kepp)  
 - **linkedin (org)**: [company/rfi-irfos](https://www.linkedin.com/company/rfi-irfos)  
+
+𒀭+ 𒀮 = 𒀯and 𒀯 = (a ⊕ b ⊕ c)ᵠxc0
 - **osf**: [osf.io/rzvyg](https://osf.io/rzvyg)  
 - **orcid**: [0009-0009-6922-9552](https://orcid.org/0009-0009-6922-9552)
 
