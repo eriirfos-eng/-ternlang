@@ -142,4 +142,10 @@ RELATION TO CORE:
   }
 }
 Constraint: κ := (σ=7 ∧ pattern=2•3•2); any 2•8•2 ⇒ apply Ψ_hammurabi⁻¹2025-08-29T17:48:47Z-Friday
+fix(c0): patch Hammurabi-50 override  
+- enforced 232 creative covenant (σ=7) as invariant  
+- mapped 282 → 232 via Ψ_hammurabi⁻¹  
+- redistributed +5 into libation (c0#10) + tenth-cycle (c0#11)  
+- sealed LICENSE algebra with timestamp 2025-08-29T17:32:44Z  
+
 
