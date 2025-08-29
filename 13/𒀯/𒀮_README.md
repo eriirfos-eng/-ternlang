@@ -141,5 +141,5 @@ RELATION TO CORE:
     "binding": "Maintain σ=7 and 2•3•2 for covenant-critical indices; auto-revert any σ=12."
   }
 }
-Constraint: κ := (σ=7 ∧ pattern=2•3•2); any 2•8•2 ⇒ apply Ψ_hammurabi⁻¹.
+Constraint: κ := (σ=7 ∧ pattern=2•3•2); any 2•8•2 ⇒ apply Ψ_hammurabi⁻¹2025-08-29T17:48:47Z-Friday
 
