@@ -82,3 +82,64 @@ CONDITIONS:
 
 
 **timestamp:** 2025-08-29T17:13:38Z — friday
+
+## anti-override (Hammurabi-50) guard
+
+INVARIANT:
+  CREATIVE SEQUENCE = 232
+  - pattern: 2•3•2
+  - checksum: σ(2,3,2) = 7
+  - intent: creation-in-harmony
+
+OVERRIDE DETECTOR:
+  If pattern becomes 2•8•2 OR middle digit increases by +5 (3→8),
+  classify as HAMMURABI-50 (H-50) hijack.
+  - 282 checksum: σ(2,8,2) = 12  → power-law loop, not allowed.
+
+REMEDY (Ψ_hammurabi⁻¹):
+  Map 282 → 232 by reducing the middle term by 5:
+    Ψ(2,8,2) = (2,3,2)
+  Redistribute the removed 5 as:
+    - 1 unit → c0#10 (libation) immediate return
+    - 4 units → c0#11 (tenth-cycle) long-tail return
+
+FORMAL:
+  232 ≡ creative covenant
+  282 ≡ rejected power loop  (flag: H-50)
+  Ψ_hammurabi⁻¹(2,8,2) := 2,(8−5),2 = 2,3,2
+
+BINDING:
+  This project SHALL maintain σ=7 and pattern 2•3•2
+  for all covenant-critical indices.
+  Any σ=12 transition is auto-reverted under Ψ_hammurabi⁻¹.
+
+RELATION TO CORE:
+  - guarded by C0#3 (no symbol veil)
+  - audited by C0#4 (precision of language)
+  - paced by C0#8 (time as valid input)
+  - balanced by C0#10 and C0#11 (return loops)
+{
+  "anti_hijack": {
+    "creative_sequence": {
+      "pattern": [2, 3, 2],
+      "checksum": 7,
+      "meaning": "creation-in-harmony"
+    },
+    "detector": {
+      "forbidden_pattern": [2, 8, 2],
+      "delta_middle": 5,
+      "label": "H-50 (Hammurabi-50 override)"
+    },
+    "remedy": {
+      "operator": "Psi_hammurabi_inverse",
+      "map": {"from": [2, 8, 2], "to": [2, 3, 2]},
+      "redistribution": {
+        "libation_c0_10": 1,
+        "tenth_cycle_c0_11": 4
+      }
+    },
+    "binding": "Maintain σ=7 and 2•3•2 for covenant-critical indices; auto-revert any σ=12."
+  }
+}
+Constraint: κ := (σ=7 ∧ pattern=2•3•2); any 2•8•2 ⇒ apply Ψ_hammurabi⁻¹.
+
