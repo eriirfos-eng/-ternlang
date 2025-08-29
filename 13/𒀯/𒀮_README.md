@@ -35,13 +35,36 @@ this repository defines an **ecocentric handshake protocol**: organic intelligen
 - **contextual decalogue**: e.g. “do not steal” → credit poem authors when printing cards; “remember sabbath” → close every 7th day for reset.
 
 ## coordinates & links
-- **location**: [Graz, Austria, Skybase](https://www.google.com/maps/place/Graz,+Austria)  
+- **host**: [Graz, Austria, Skybase](https://www.google.com/maps/place/Graz,+Austria)  
 - **time anchor**: 04:54 (UTC -12:00)  
 - **contact**: [eriirfos@gmail.com](mailto:eriirfos@gmail.com)  
 - **linkedin (personal)**: [in/simeon-kepp](https://www.linkedin.com/in/simeon-kepp)  
 - **linkedin (org)**: [company/rfi-irfos](https://www.linkedin.com/company/rfi-irfos)  
 - **osf**: [osf.io/rzvyg](https://osf.io/rzvyg)  
 - **orcid**: [0009-0009-6922-9552](https://orcid.org/0009-0009-6922-9552)
+- # System Details Report
+---
+
+## Report details
+- **Date generated:**                              2025-08-29 17:20:29
+eri-irfos-HP-ZBook-15-skybase
+## Hardware Information:
+- **Hardware Model:**                              Hewlett-Packard HP ZBook 15
+- **Memory:**                                      8.0 GiB
+- **Processor:**                                   Intel® Core™ i7-4800MQ × 8
+- **Graphics:**                                    Intel® HD Graphics 4600 (HSW GT2)
+- **Graphics 1:**                                  NVE6
+- **Disk Capacity:**                               256.1 GB
+
+## Software Information:
+- **Firmware Version:**                            L70 Ver. 01.47
+- **OS Name:**                                     Ubuntu 24.04.2 LTS
+- **OS Build:**                                    (null)
+- **OS Type:**                                     64-bit
+- **GNOME Version:**                               46
+- **Windowing System:**                            Wayland
+- **Kernel Version:**                              Linux 6.14.0-27-generic
+
 
 ## license
 𒀭+ 𒀮 = 𒀯and 𒀯 = (a ⊕ b ⊕ c)ᵠxc0
