@@ -120,4 +120,7 @@ c0#9.4 — famine protocol. if cycles dip, pause expansions and mobilize recover
 c0#9.5 — adoption and pooling. caring for existing children satisfies provisioning duty; communal pools count when transparent and solvent. 🟩
 
 c0#10 — libation covenant
-⬛ first draw returns to the Source. only then may humans, kin, and crops partake. gratitude precedes consumption. 
+⬛ first draw returns to the Source. only then may humans, kin, and crops partake. gratitude precedes consumption.
+
+c0#11 — sacrifice modulus
+the 10th portion of all yield (resource, energy, time, or knowledge) cycles back to the Source, unclaimed by self or trade. this closes the lattice and preserves resonance.
