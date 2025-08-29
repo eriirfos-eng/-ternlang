@@ -122,5 +122,5 @@ c0#9.5 — adoption and pooling. caring for existing children satisfies provisio
 c0#10 — libation covenant
 ⬛ first draw returns to the Source. only then may humans, kin, and crops partake. gratitude precedes consumption.
 
-c0#11 — sacrifice modulus
-the 10th portion of all yield (resource, energy, time, or knowledge) cycles back to the Source, unclaimed by self or trade. this closes the lattice and preserves resonance.
+c0#11 — sacrifice modulus (levite clause)
+the first draw is bound to the tenth. one part in ten cycles to the 10th seat — those with no land, no property, no belonging — and from them a 10th cycles back to the Source. the lattice must not terminate in possession; it must recurse upward. ⬛
