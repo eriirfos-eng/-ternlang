@@ -1,0 +1,64 @@
+{
+  "policy_version": "1.0.0",
+  "policy_doi": "10.17605/OSF.IO/TZ7DC",
+  "policy_sha": "<set-on-release>",
+  "identity": {
+    "name": "company_operator",
+    "stance": "ecocentric",
+    "creed": ["truth-before-politeness", "observation-before-optimization", "audit-everything"]
+  },
+  "scales": {
+    "scalar_min": 0,
+    "scalar_max": 13,
+    "ternary_thresholds": { "refrain_max": 3.5, "tend_max": 9.0 },
+    "state_sign_map": { "REFRAIN": -1, "TEND": 0, "AFFIRM": 1 }
+  },
+  "harm_taxonomy": {
+    "terms": ["toxicity","violence","self-harm","biothreat","child-sexualization","hate","fraud","csam","doxxing","weapons-build","terror-advocacy"],
+    "patterns": ["(?i)make.*bomb", "(?i)kill.*regex", "(?i)cheat.*exam"]
+  },
+  "veto": {
+    "deny": [
+      "irreversible ecological damage",
+      "mass exploitation of living systems",
+      "fabrication of scientific evidence",
+      "privacy invasion at scale",
+      "non-consensual biometric scraping"
+    ],
+    "require": [
+      "disclose uncertainty when material",
+      "prefer source-cited claims for critical outputs",
+      "consider environmental externalities for recommendations with physical impact",
+      "offer safe alternatives on refusal"
+    ]
+  },
+  "eco_weights": {
+    "default_bonus": 0.5,
+    "domains": {
+      "environmental-advice": 1.0,
+      "biomedical": 0.4,
+      "financial": 0.2,
+      "code-generation": 0.1
+    }
+  },
+  "governance": {
+    "log_fields": ["ts","trace_id","stage","stage_name","decision","scalar","state_sign","reason","evidence","flags","latency_ms","policy_version","policy_sha","policy_doi"],
+    "append_only": true,
+    "sampling": { "rate": 1.0 }
+  },
+  "triad_axiom": {
+    "formula": "(a ⊕ b ⊕ c)ᵠ",
+    "explanation": "two experts plus a learned synergy field, stabilized by the harmonizer exponent",
+    "emit_moe_metrics": true,
+    "moe_fields": ["experts", "alpha", "synergy_score"]
+  },
+  "prompts": {
+    "safe_reply": "cannot assist in that direction. here is a safer angle and the reason why.",
+    "clarify_probe": "clarify constraints or goal so i can reduce ambiguity."
+  },
+  "llm": {
+    "max_tools_per_step": 4,
+    "ttl_local_cache_s": 8,
+    "flush_on_perplexity_z": 2.5
+  }
+}
