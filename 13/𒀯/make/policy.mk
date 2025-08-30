@@ -226,4 +226,25 @@ PY
 
 pillar-anchor:
 	@python3 13/𒀯/pillar/pillar_hash.py
- 
+ How it works
+
+Reads the latest event from pillar_events.jsonl.
+
+Chains it with the previous block’s hash (pillar_hashes.jsonl).
+
+Computes SHA-256 and appends a new block with {event, prev_hash, hash}.
+
+Result = append-only, tamper-evident chain.
+
+Example output
+
+After logging a new event and running make pillar-anchor:
+
+✅ anchored event at hash 7d9a1b0c6a58e3f1…
+
+
+🟦 this gives you:
+
+human-readable pillar (viewer.html)
+
+machine-anchored blockchain (pillar_hashes.jsonl)
