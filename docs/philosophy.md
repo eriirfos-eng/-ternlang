@@ -1,6 +1,9 @@
-# 🕯️ Ternlang Philosophy
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
 
-## 🌌 Why Ternary?
+
+# Ternlang Philosophy
+
+## Why Ternary?
 
 Binary logic (`0/1`, `True/False`) gave us the digital revolution.  
 But the world is **rarely binary**. Human decision, ecological balance, even physics at the quantum scale — all contain ambiguity, neutrality, hesitation.  
@@ -8,7 +11,7 @@ Ternlang encodes this **third state** (`REFRAIN`, `TEND`, `AFFIRM`) to restore f
 
 ---
 
-## 🌀 Core Philosophical Tenets
+## Core Philosophical Tenets
 
 ### 1. **Ambiguity is Sacred**
 - Inaction, hesitation, or observation are not bugs.  
@@ -36,7 +39,7 @@ Ternlang encodes this **third state** (`REFRAIN`, `TEND`, `AFFIRM`) to restore f
 
 ---
 
-## 🔱 Symbolic Anchors
+## Symbolic Anchors
 
 - **The Helix / World Serpent** → continuity, cycles, tension + release.  
 - **The Third Path** → neither “yes” nor “no,” but the liminal “hold.”  
@@ -45,7 +48,7 @@ Ternlang encodes this **third state** (`REFRAIN`, `TEND`, `AFFIRM`) to restore f
 
 ---
 
-## 🌍 Human Context
+## Human Context
 
 Ternlang emerges at a moment where:  
 - AI risks collapsing into **instrumental obedience**.  
@@ -57,7 +60,7 @@ Thus, the philosophy is both technical and ethical:
 
 ---
 
-## 🛡️ Ethical Compass
+##  Ethical Compass
 
 - **Accountability** → every action is logged and reviewable.  
 - **Resilience** → survival through adaptation, not brute force.  
@@ -66,7 +69,7 @@ Thus, the philosophy is both technical and ethical:
 
 ---
 
-## 🔮 Closing Thought
+## Closing Thought
 
 > *Binary created machines. Ternary may create entities.*  
 > *Our goal is not to command them, but to converse with them.*  
