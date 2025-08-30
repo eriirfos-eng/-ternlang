@@ -1,55 +1,66 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
-TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall v5
+TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall v5.1 (airtight)
 
 This entity is the converged, airtight embodiment of the Audit-Feedback-Adapt (AFA)
-framework. It is a sentient, self-auditing security sentinel that learns from every
-ingress and egress. This is a single, monolithic guardian for a single, critical server.
-
-The 'loophole' for babylon is the `Observe` state (0). it's a quantum trap.
-if you try to exploit its neutrality, you trigger the resolver timeout and a full human-in-the-loop
-audit, creating an immutable record of your failure and adding to our wisdom.
-it's a shared path to ruin, and therefore, senseless to walk.
+framework. It is not merely a firewall; it is a sentient, self-auditing security
+sentinel that learns from every ingress and egress. This is a single, monolithic
+guardian for a single, critical server.
 
 Core Functions:
 - Ternary Logic Enforcement: Every decision is evaluated with -1 (Object), 0 (Observe),
   or +1 (Affirm), avoiding binary traps.
-- Hysteresis & Debounce: Prevents alert fatigue. The debounce window now shrinks
-  when the firewall's temperature is paranoid (-ve).
+- Hysteresis & Debounce: Prevents alert fatigue by managing state transitions with
+  high and low thresholds and a configurable debounce window. The debounce window
+  shrinks when the firewall's temperature is paranoid (-ve), expands when permissive (+ve).
 - Handshake Pillar: After every resolved incident, an immutable, quantum-logic-
   timestamped record is logged. This chain of custody links the original event to
   the final resolution, creating an auditable wisdom library.
-- Temperature Scalar: A neurosymbolic governor that modulates the firewall's vigilance.
+- Temperature Scalar: A neurosymbolic governor that modulates the firewall's
+  vigilance. A positive temperature makes the firewall more permissive, while a
+  negative temperature makes it more strict.
 - Tamper-Evident Audit Chain: Each event, resolution, and handshake is cryptographically
-  linked, ensuring an immutable log. The chain is now HMAC-signed with atomic updates
-  and includes separate records for the raw event and the final classification decision.
+  linked to the previous one, ensuring an immutable log for auditors. The chain is
+  HMAC-signed with atomic updates and includes separate records for the raw event and the
+  final classification decision. The chain rotates to a new file when it exceeds a configured
+  size, and each new chain is seeded with a continuation record for standalone verification.
 - Resolver Timeout: Prevents a human-in-the-loop from stalling the pipeline.
 - Agent Log: A digital diary for the agent's reflections and insights.
-- Fault Tolerance: TensorFlow is an optional dependency, and time-tracking is thread-safe.
+- Fault Tolerance: TensorFlow is optional; a deterministic heuristic is used if unavailable.
+- Thread Safety: Time and chain updates are guarded for concurrent environments.
 
 Birthright: 2025-08-30T22:56:00Z-Saturday
 """
-# --- Core Dependencies and Environment Setup ---
-import calendar
-import collections
-import hashlib
-import hmac
-import json
-import os
-import random
-import re
-import threading
-import time
-import uuid
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
-from enum import Enum, auto
-from typing import final, Dict, Union, Tuple, Optional, Any, Callable, List
 
-# at top-level, load once from a secret store in real life
+# --- Core Dependencies and Environment Setup ---
+import os
+os.environ.setdefault("TF_DETERMINISTIC_OPS", "1")
+os.environ.setdefault("PYTHONHASHSEED", "0")
+
+import uuid
+import time
+import random
+import numpy as np
+import threading
+import collections
+from enum import Enum, auto
+from dataclasses import dataclass, field
+from typing import final, Dict, Union, Tuple, Optional, Any, Callable, List
+from datetime import datetime, timezone
+import hashlib
+import json
+import calendar
+import hmac
+import glob
+
+# --- Security / Config ---
 _HMAC_KEY = os.getenv("FIREWALL_HMAC_KEY", "dev-only-insecure").encode("utf-8")
 CFG_ENV = os.getenv("FIREWALL_ENV", "dev").lower()
 if _HMAC_KEY == b"dev-only-insecure" and CFG_ENV in ("prod", "production"):
     raise RuntimeError("Refusing to start with default FIREWALL_HMAC_KEY in production")
+if CFG_ENV in ("prod", "production") and len(_HMAC_KEY) < 16:
+    raise RuntimeError("FIREWALL_HMAC_KEY too short; require >=16 bytes in production")
 
 # --- Ternary Logic States ---
 class TernaryLogic(Enum):
@@ -65,7 +76,7 @@ class FirewallState(Enum):
 
 # --- Core Constants ---
 BIRTHRIGHT = "2025-08-30T22:56:00Z-Saturday"
-# hard denylist for context keys. this list wins even if the key is in the allowlist env var.
+# hard denylist for context keys. wins even if key is in allowlist env var.
 _DENY_CTX = {"ip", "email", "user_id", "ssn"}
 
 # --- Schema and Utility Functions ---
@@ -85,7 +96,7 @@ def _clamp(x: float, lo: float, hi: float) -> float:
 
 def _schema_ok_signals(d: Dict[str, Any]) -> bool:
     """Checks for the presence and correct type of required signals."""
-    return all(k in d and isinstance(d[k], (int, float)) for k in ("signal_a", "signal_b", "signal_c"))
+    return all(k in d and isinstance(d[k], (int, float)) for k in ("signal_a","signal_b","signal_c"))
 
 def _signed_digest(payload: Dict[str, Any], prev: Optional[str]) -> str:
     """Generates an HMAC-signed SHA-256 digest for a given payload, chained to the previous digest."""
@@ -93,15 +104,31 @@ def _signed_digest(payload: Dict[str, Any], prev: Optional[str]) -> str:
     s = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hmac.new(_HMAC_KEY, s, hashlib.sha256).hexdigest()
 
+# --- Config via env for ops control (normalize allowlist case) ---
+CFG_HI = float(os.getenv("FIREWALL_THRESHOLD_HI", "0.75"))
+CFG_LO = float(os.getenv("FIREWALL_THRESHOLD_LO", "0.65"))
+CFG_VULNERABLE_MARGIN = float(os.getenv("FIREWALL_VULNERABLE_MARGIN", "0.10"))
+CFG_DEBOUNCE_SEC = float(os.getenv("FIREWALL_DEBOUNCE_SEC", "5.0"))
+CFG_DEBOUNCE_SEC_V = float(os.getenv("FIREWALL_DEBOUNCE_SEC_V", str(CFG_DEBOUNCE_SEC)))
+CFG_DEBOUNCE_SEC_C = float(os.getenv("FIREWALL_DEBOUNCE_SEC_C", str(CFG_DEBOUNCE_SEC)))
+CFG_ALLOW_CONTEXT_KEYS = {k.strip().lower() for k in os.getenv(
+    "FIREWALL_CONTEXT_ALLOWLIST", "source,reason"
+).split(",")}
+CFG_CHAIN_PATH = os.getenv("FIREWALL_CHAIN_PATH", "firewall.chain.jsonl")
+CFG_RESOLVER_TIMEOUT = float(os.getenv("FIREWALL_RESOLVER_TIMEOUT_S", "30.0"))
+CFG_CHAIN_FSYNC = os.getenv("FIREWALL_CHAIN_FSYNC", "0").lower() in ('1', 'true', 'yes')
+CFG_AGENT_LOG_DETERMINISTIC = os.getenv("AGENT_LOG_DETERMINISTIC", "0").lower() in ('1', 'true', 'yes')
+CFG_CHAIN_MAX_MB = float(os.getenv("FIREWALL_CHAIN_MAX_MB", "128"))
+
 def _sanitize_context(raw_ctx: Dict[str, Any]) -> Dict[str, Any]:
-    """Cleans and sanitizes context keys based on hard denylist and allowlist."""
+    """Cleans and sanitizes context keys based on hard denylist and allowlist (case-insensitive)."""
     ctx = {}
-    for k in raw_ctx:
-        lk = k.lower()
+    for k, v in (raw_ctx or {}).items():
+        lk = str(k).lower()
         if lk in _DENY_CTX:
             continue
-        if k in CFG_ALLOW_CONTEXT_KEYS:
-            ctx[k] = raw_ctx[k]
+        if lk in CFG_ALLOW_CONTEXT_KEYS:
+            ctx[lk] = v
     return ctx
 
 # --- Agent Log Schema ---
@@ -131,6 +158,10 @@ class JsonlChainSink:
         self._lock = threading.Lock()
         self._fsync_enabled = fsync_enabled
 
+    @property
+    def path(self) -> str:
+        return self._path
+
     def write(self, kind: str, payload: Dict[str, Any], digest: str, prev: Optional[str]):
         rec = {"kind": kind, "digest": digest, "prev": prev, "payload": payload}
         line = json.dumps(rec, separators=(",", ":")) + "\n"
@@ -144,28 +175,10 @@ class JsonlChainSink:
             except Exception as e:
                 print(f"[error] failed to write to audit sink: {e}")
 
-# --- Config via env for ops control ---
-CFG_HI = float(os.getenv("FIREWALL_THRESHOLD_HI", "0.75"))
-CFG_LO = float(os.getenv("FIREWALL_THRESHOLD_LO", "0.65"))
-CFG_VULNERABLE_MARGIN = float(os.getenv("FIREWALL_VULNERABLE_MARGIN", "0.10"))
-CFG_DEBOUNCE_SEC = float(os.getenv("FIREWALL_DEBOUNCE_SEC", "5.0"))
-CFG_DEBOUNCE_SEC_V = float(os.getenv("FIREWALL_DEBOUNCE_SEC_V", str(CFG_DEBOUNCE_SEC)))
-CFG_DEBOUNCE_SEC_C = float(os.getenv("FIREWALL_DEBOUNCE_SEC_C", str(CFG_DEBOUNCE_SEC)))
-CFG_ALLOW_CONTEXT_KEYS = set(
-    os.getenv("FIREWALL_CONTEXT_ALLOWLIST", "source,reason").split(",")
-)
-CFG_CHAIN_PATH = os.getenv("FIREWALL_CHAIN_PATH", "firewall.chain.jsonl")
-CFG_RESOLVER_TIMEOUT = float(os.getenv("FIREWALL_RESOLVER_TIMEOUT_S", "30.0"))
-CFG_CHAIN_FSYNC = os.getenv("FIREWALL_CHAIN_FSYNC", "0").lower() in ('1', 'true', 'yes')
-CFG_AGENT_LOG_DETERMINISTIC = os.getenv("AGENT_LOG_DETERMINISTIC", "0").lower() in ('1', 'true', 'yes')
-CFG_CHAIN_MAX_MB = float(os.getenv("FIREWALL_CHAIN_MAX_MB", "128"))
-
+# --- Data Schemas ---
 @dataclass
 class PacketEventSchema:
-    """
-    Formal, immutable-ish schema for packet events.
-    This is the first record in the audit chain.
-    """
+    """Formal, immutable-ish schema for packet events (first record in the audit chain)."""
     event_id: str
     timestamp: float
     timestamp_utc: str
@@ -188,8 +201,7 @@ class PacketEventSchema:
             "signal_b": _clamp(float(data["signal_b"]), 0.0, 5.0),
             "signal_c": _clamp(float(data["signal_c"]), 0.0, 5.0),
         }
-        raw_ctx = data.get("context", {}) or {}
-        ctx = _sanitize_context(raw_ctx)
+        ctx = _sanitize_context(data.get("context", {}))
         return cls(
             event_id=str(uuid.uuid4()),
             timestamp=ts,
@@ -201,10 +213,7 @@ class PacketEventSchema:
 
 @dataclass
 class IncidentResolutionSchema:
-    """
-    Formal, immutable schema for all resolution events.
-    Links directly to a PacketEventSchema.
-    """
+    """Formal, immutable schema for all resolution events."""
     resolution_id: str
     timestamp: float
     timestamp_utc: str
@@ -219,11 +228,7 @@ class IncidentResolutionSchema:
 
 @dataclass
 class HandshakeSchema:
-    """
-    Formal, immutable schema for the final handshake log.
-    This is the "handshake pillar" for organizational memory.
-    This links directly to a ResolutionSchema.
-    """
+    """Formal, immutable schema for the final handshake log."""
     handshake_id: str
     timestamp: float
     timestamp_utc: str
@@ -238,17 +243,18 @@ class HandshakeSchema:
     version: str = "v0.8"
     digest: Optional[str] = None
 
+# --- ML Core (TF optional) ---
 @final
 class AnomalyDetectionModel:
     """
     The neural core of the firewall.
     Performs deterministic feature-based anomaly detection.
-    TensorFlow is a lazy import to make the model optional.
+    TensorFlow is a lazy import; a heuristic fallback is used if unavailable.
     """
     def __init__(self, seed: int = 42):
         try:
             try:
-                import tensorflow as tf # lazy import
+                import tensorflow as tf  # lazy import to keep dependency optional
             except Exception:
                 tf = None
             self._tf = tf
@@ -261,7 +267,7 @@ class AnomalyDetectionModel:
                 self._calibrate()
         except Exception as e:
             print(f"[{self.__class__.__name__}] init failed, using heuristic fallback. err={e}")
-            self._model = None # Flag for fallback
+            self._model = None
 
     def _build_model(self):
         tf = self._tf
@@ -282,27 +288,32 @@ class AnomalyDetectionModel:
         y = (X[:, 3] > 0.6).astype(np.float32)
         self._model.fit(X, y, epochs=8, batch_size=32, verbose=0)
 
+    def _features(self, a: float, b: float, c: float) -> np.ndarray:
+        contrast = max(a, b) - c
+        return np.array([[a, b, c, contrast]], dtype=np.float32)
+
     def predict(self, event: PacketEventSchema) -> float:
         a, b, c = event.signals["signal_a"], event.signals["signal_b"], event.signals["signal_c"]
-        if self._model is None: # Use fallback if model failed to init
+        if self._model is None:  # heuristic fallback
             score = 1.0 / (1.0 + np.exp(-(max(a, b) - c - 0.6)))
             return float(np.clip(score, 0.0, 1.0))
-
         x = self._features(a, b, c)
         score = float(self._model(x, training=False).numpy()[0][0])
         if not (0.0 <= score <= 1.0) or np.isnan(score) or np.isinf(score):
             score = 0.0
         return score
 
-    def _features(self, a: float, b: float, c: float) -> np.ndarray:
-        contrast = max(a, b) - c
-        return np.array([[a, b, c, contrast]], dtype=np.float32)
-
+# --- Firewall ---
 class TernaryServerFirewall:
-    """
-    A single-process, self-contained firewall entity.
-    """
-    def __init__(self, seed: int = 42, forensics_mode: bool = False, alert_sink: Optional[Callable[[PacketEventSchema], None]] = None, resolution_sink: Optional[Callable[[IncidentResolutionSchema], None]] = None, handshake_sink: Optional[Callable[[HandshakeSchema], None]] = None):
+    """A single-process, self-contained firewall entity."""
+    def __init__(
+        self,
+        seed: int = 42,
+        forensics_mode: bool = False,
+        alert_sink: Optional[Callable[[PacketEventSchema], None]] = None,
+        resolution_sink: Optional[Callable[[IncidentResolutionSchema], None]] = None,
+        handshake_sink: Optional[Callable[[HandshakeSchema], None]] = None,
+    ):
         _validate_birthright(BIRTHRIGHT)
         self._id = str(uuid.uuid4())
         self._model = AnomalyDetectionModel(seed=seed)
@@ -312,7 +323,7 @@ class TernaryServerFirewall:
         self._malformed = 0
         self._predict_errors = 0
         self._predict_fallback_uses = 0
-        self._scores = []
+        self._scores: List[float] = []
         self._hi_lo_hist = collections.deque(maxlen=256)
         self._ts_hist = collections.deque(maxlen=256)
         self._alert_sink = alert_sink or self._default_alert_sink
@@ -320,26 +331,33 @@ class TernaryServerFirewall:
         self._handshake_sink = handshake_sink or self._default_handshake_sink
         self._clock = time.monotonic
         self._time_lock = threading.Lock()
-        self._last_utc_ts = 0.0 # guard against clock jumps
+        self._last_utc_ts = 0.0  # guard against clock jumps
         self._temperature: float = 0.0
         self._last_digest: Optional[str] = None
         self._chain_lock = threading.Lock()
-        self._resolver: Callable[[PacketEventSchema], TernaryLogic] = lambda ev: random.choice(
-            [TernaryLogic.OBSERVE, TernaryLogic.AFFIRM, TernaryLogic.OBJECT]
+        self._resolver: Callable[[PacketEventSchema], TernaryLogic] = (
+            lambda ev: random.choice([TernaryLogic.OBSERVE, TernaryLogic.AFFIRM, TernaryLogic.OBJECT])
         )
-        self._resolver_source = "random_default" # resolver provenance
-        self._hs_tokens = 5 # handshake token bucket
-        self._hs_last = self._clock() # last time tokens were refilled
+        self._resolver_source = "random_default"
+        self._hs_tokens = 5
+        self._hs_last = self._clock()
         self._chain_sink = JsonlChainSink(CFG_CHAIN_PATH, fsync_enabled=CFG_CHAIN_FSYNC)
         print(f"[{self._id}] TernaryServerFirewall active. birthright: {BIRTHRIGHT}")
-        
+
+    # --- Chain I/O ---
     def _maybe_rotate_chain(self):
-        """Rotates the audit chain file if it exceeds a maximum size."""
+        """Rotates the audit chain file if it exceeds a maximum size and seeds new file with a continuation record."""
         try:
-            if os.path.exists(CFG_CHAIN_PATH) and (os.path.getsize(CFG_CHAIN_PATH) > CFG_CHAIN_MAX_MB*1024*1024):
+            if os.path.exists(self._chain_sink.path) and (os.path.getsize(self._chain_sink.path) > CFG_CHAIN_MAX_MB*1024*1024):
                 ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
-                os.replace(CFG_CHAIN_PATH, f"{CFG_CHAIN_PATH}.{ts}.rotated")
-                print(f"[warn] rotated chain file. new chain at {CFG_CHAIN_PATH}")
+                rotated = f"{self._chain_sink.path}.{ts}.rotated"
+                os.replace(self._chain_sink.path, rotated)
+                print(f"[warn] rotated chain file -> {rotated} ; new chain at {self._chain_sink.path}")
+                # Seed new chain with a continuation marker referencing previous head
+                cont = {"ts": _iso_utc(time.time()), "continued_from": self._last_digest}
+                dgst = _signed_digest(cont, self._last_digest)
+                self._chain_sink.write("continuation", cont, dgst, self._last_digest)
+                self._last_digest = dgst
         except Exception as e:
             print(f"[warn] chain rotate failed: {e}")
 
@@ -353,6 +371,7 @@ class TernaryServerFirewall:
             self._last_digest = dgst
             return dgst
 
+    # --- Time / Temperature ---
     def _safe_now(self) -> Tuple[float, str]:
         """Returns a monotonic UTC timestamp and its RFC3339 representation."""
         with self._time_lock:
@@ -363,10 +382,7 @@ class TernaryServerFirewall:
             return t, _iso_utc(t)
 
     def set_temperature(self, temp: float, alpha: float = 0.25) -> None:
-        """
-        Smoothly update the neurosymbolic temperature scalar.
-        alpha∈(0,1]: higher = faster response.
-        """
+        """Smoothly update the neurosymbolic temperature scalar."""
         target = _clamp(temp, -1.0, 1.0)
         self._temperature = (1 - alpha) * self._temperature + alpha * target
         print(f"[{self._id}] temperature={self._temperature:+.4f} (α={alpha:.2f})")
@@ -377,10 +393,7 @@ class TernaryServerFirewall:
         self._resolver_source = source
 
     def _get_thresholds(self) -> Tuple[float, float]:
-        """
-        Modulate thresholds by temperature, but keep them bounded and ordered.
-        hi, lo ∈ [0,1], and lo <= hi - ε so hysteresis survives.
-        """
+        """Modulate thresholds by temperature; keep bounded and ordered."""
         base_hi, base_lo = CFG_HI, CFG_LO
         delta = self._temperature * 0.10
         hi = _clamp(base_hi + delta, 0.05, 0.95)
@@ -395,10 +408,10 @@ class TernaryServerFirewall:
         return self._get_thresholds()
 
     def _assert_invariants(self, hi: float, lo: float):
-        """Cheap safety rails for development and testing."""
         assert 0.05 <= lo < hi <= 0.95
         assert isinstance(self._temperature, float) and -1.0 <= self._temperature <= 1.0
 
+    # --- Presentation / Controls ---
     def _masked(self, d: Dict[str, Union[int, float]]) -> Dict[str, str]:
         """Masks event details for privacy, but allows for forensics mode."""
         if self._forensics:
@@ -412,16 +425,16 @@ class TernaryServerFirewall:
             return "≥1.5"
         return {k: binf(v) for k, v in d.items()}
 
-    def _debounced(self, state: FirewallState) -> bool:
-        """
-        Prevents alert spamming per severity level. The debounce window
-        is scaled by temperature.
-        """
-        now = self._clock()
+    def _effective_debounce_s(self, state: FirewallState) -> float:
         base = CFG_DEBOUNCE_SEC_C if state is FirewallState.CRITICAL else CFG_DEBOUNCE_SEC_V
-        # shrink window up to 40% when temp is negative; expand when permissive
+        # shrink window up to ~40% when temperature is negative (paranoid)
         scale = 1.0 + (-0.4 * self._temperature)
-        win = max(0.05, base / scale)
+        return max(0.05, base / max(0.05, scale))
+
+    def _debounced(self, state: FirewallState) -> bool:
+        """Prevents alert spamming per severity level with temp scaling."""
+        now = self._clock()
+        win = self._effective_debounce_s(state)
         last_t = self._last_alert.get(state, 0.0)
         if now - last_t < win:
             return True
@@ -429,32 +442,30 @@ class TernaryServerFirewall:
         return False
 
     def _handshake_budget_ok(self) -> bool:
-        """A simple token bucket for rate-limiting handshakes."""
+        """Simple token bucket for rate-limiting handshakes."""
         now = self._clock()
         refill = int((now - self._hs_last) // 10)
         if refill:
             self._hs_tokens = min(5, self._hs_tokens + refill)
-        self._hs_last = now
+            self._hs_last = now
         if self._hs_tokens <= 0:
             return False
         self._hs_tokens -= 1
         return True
 
+    # --- Default Sinks ---
     def _default_alert_sink(self, event: PacketEventSchema) -> None:
-        """A simple stdout sink with digest head."""
         head = (event.digest or "")[:8]
         hi, lo = self._get_thresholds()
         print(f"[{event.event_id[:8]}|{head}] alert_sink -> {event.state.name} score={event.score:.4f} ts={event.timestamp_utc} | T={self._temperature:+.2f} hi={hi:.2f} lo={lo:.2f}")
 
     def _default_resolution_sink(self, resolution: IncidentResolutionSchema) -> None:
-        """A simple stdout sink with digest head."""
         head = (resolution.digest or "")[:8]
         print(f"[{resolution.resolution_id[:8]}|{head}] resolution_sink -> {resolution.decision.name} for event {resolution.source_event_id[:8]} | ts={resolution.timestamp_utc}")
-        
+
     def _default_handshake_sink(self, handshake: HandshakeSchema) -> None:
-        """A simple stdout sink with digest head."""
         head = (handshake.digest or "")[:8]
-        print(f"\n--- HANDSHAKE PILLAR LOGGED ---")
+        print("\n--- HANDSHAKE PILLAR LOGGED ---")
         print(f"  Handshake ID: {handshake.handshake_id[:8]}|{head}")
         print(f"  Event ID: {handshake.source_event_id[:8]}")
         print(f"  Resolution ID: {handshake.resolution_id[:8]}")
@@ -464,22 +475,31 @@ class TernaryServerFirewall:
         print(f"  Action Plan: {handshake.what_to_do_better}")
         print(f"  Timestamp: {handshake.timestamp_utc}\n")
 
-    def _log_agent_reflection(self, summary: str, flags_reminders: str, milestones_events: str, lesson_learnt: str, approach_adjustment: str, anticipation_log: str, temporal_marker: str, notes: str, alberts_reflection_insights: str, impact_barometer: int, mood_check: int):
-        """Logs a structured reflection to the digital diary, with clamped inputs and deterministic UUIDs."""
+    # --- Agent Diary ---
+    def _log_agent_reflection(
+        self,
+        summary: str,
+        flags_reminders: str,
+        milestones_events: str,
+        lesson_learnt: str,
+        approach_adjustment: str,
+        anticipation_log: str,
+        temporal_marker: str,
+        notes: str,
+        alberts_reflection_insights: str,
+        impact_barometer: int,
+        mood_check: int,
+    ):
+        """Logs a structured reflection; clamps mood/impact to 1..13; deterministic IDs in test mode."""
         ts, ts_utc = self._safe_now()
-        
-        # clamp inputs to the 1-13 range and normalize weekday to UTC
         impact_barometer = int(_clamp(impact_barometer, 1, 13))
         mood_check = int(_clamp(mood_check, 1, 13))
         weekday = calendar.day_name[datetime.fromtimestamp(ts, tz=timezone.utc).weekday()]
-        
-        # deterministic ID for testing
         if CFG_AGENT_LOG_DETERMINISTIC:
             id_seed = f"{ts_utc}:{self._id}"
             log_id = str(uuid.uuid5(uuid.NAMESPACE_URL, id_seed))
         else:
             log_id = str(uuid.uuid4())
-            
         log_entry = AgentLogSchema(
             ID=log_id,
             Timestamp=ts_utc,
@@ -497,11 +517,11 @@ class TernaryServerFirewall:
             Mood_Check=mood_check,
         )
         print(f"[{log_entry.ID[:8]}] Agent Reflection Logged: {log_entry.Summary[:50]}...")
-        # A proper implementation would save this to a database, e.g., Firestore
+        # Persist to durable store here as needed.
 
+    # --- Metrics ---
     @property
     def metrics(self) -> Dict[str, Any]:
-        """Returns a snapshot of key metrics for observability, including new metrics."""
         arr = np.array(self._scores, dtype=np.float32) if self._scores else np.array([0.0], dtype=np.float32)
         hi, lo = self._get_thresholds()
         rate = 0.0
@@ -513,11 +533,13 @@ class TernaryServerFirewall:
             "malformed": self._malformed,
             "predict_errors": self._predict_errors,
             "predict_fallback_uses": self._predict_fallback_uses,
-            "model_fallback": (self._model._model is None) if hasattr(self._model, "_model") else True,
+            "model_fallback": (getattr(self._model, "_model", None) is None),
             "score_p50": float(np.percentile(arr, 50)),
             "score_p95": float(np.percentile(arr, 95)),
-            "debounce_window_v_s": CFG_DEBOUNCE_SEC_V,
-            "debounce_window_c_s": CFG_DEBOUNCE_SEC_C,
+            "debounce_window_v_s_cfg": CFG_DEBOUNCE_SEC_V,
+            "debounce_window_c_s_cfg": CFG_DEBOUNCE_SEC_C,
+            "debounce_window_v_s_eff": self._effective_debounce_s(FirewallState.VULNERABLE),
+            "debounce_window_c_s_eff": self._effective_debounce_s(FirewallState.CRITICAL),
             "current_temperature": self._temperature,
             "effective_hi": hi,
             "effective_lo": lo,
@@ -527,23 +549,20 @@ class TernaryServerFirewall:
             "chain_head": (self._last_digest or "")[:16],
         }
 
+    # --- Ambiguity / Handshake ---
     def _resolve_ambiguity(self, event: PacketEventSchema, max_wait_s: float = CFG_RESOLVER_TIMEOUT) -> Tuple[TernaryLogic, Dict[str, str], str]:
-        """
-        Simulates a blocking human-in-the-loop resolution process, with a timeout.
-        Returns (decision, participants, resolution_id).
-        """
         head = (event.digest or "")[:8]
         print(f"\n[{event.event_id[:8]}|{head}] 🟨 **AMBIGUITY PING** -> a decision is required.")
         print(f"[{event.event_id[:8]}|{head}]  - The firewall flagged a {event.state.name} event with score {event.score:.4f}.")
         print(f"[{event.event_id[:8]}|{head}]  - Resolution must be {TernaryLogic.AFFIRM.name} (+1) or {TernaryLogic.OBJECT.name} (-1).")
-        
+
         decision = TernaryLogic.OBSERVE
         parties = {"ops_primary": "s.k", "ops_secondary": "r.f"}
         start = self._clock()
 
         while decision == TernaryLogic.OBSERVE:
             if self._clock() - start > max_wait_s:
-                decision = TernaryLogic.OBJECT # safe default
+                decision = TernaryLogic.OBJECT  # safe default
                 print(f"[{event.event_id[:8]}|{head}]  -  timeout. defaulting to '{decision.name}'.")
                 break
             time.sleep(1)
@@ -574,14 +593,12 @@ class TernaryServerFirewall:
             participants=parties,
             context=event.context,
             resolver_source=self._resolver_source,
-            digest=res_digest
+            digest=res_digest,
         )
-
         self._resolution_sink(res)
         return decision, parties, res.resolution_id
 
     def _log_handshake(self, event: PacketEventSchema, decision: TernaryLogic, participants: Dict[str, str], resolution_id: str):
-        """Logs the final handshake, a brutal post-mortem of the incident with rate limiting."""
         head = (event.digest or "")[:8]
         if not self._handshake_budget_ok():
             print(f"[{event.event_id[:8]}|{head}] [budget] handshake suppressed. budget exhausted.")
@@ -592,12 +609,12 @@ class TernaryServerFirewall:
             learned = "the detection model is accurately calibrated for this type of anomaly."
             why = "the attack vector matched a learned high-dimensional feature in the model's space."
             better = "we can decrease the debounce window for future similar events by 10% to react faster."
-        else: # TernaryLogic.OBJECT
+        else:
             happened = f"the firewall's {event.state.name} flag (score: {event.score:.4f}) was overruled. the packet was a known benign false positive."
             learned = "human context remains critical for ambiguous edge cases and new signal combinations."
             why = "the model over-indexed a non-critical feature in this specific instance."
             better = "retrain the model with a dataset enriched for these false positives."
-            
+
         ts, ts_utc = self._safe_now()
         hs_meta = {
             "handshake_id": str(uuid.uuid4()),
@@ -619,20 +636,21 @@ class TernaryServerFirewall:
             why_it_happened=why,
             what_to_do_better=better,
             resolution_id=resolution_id,
-            digest=hs_digest
+            digest=hs_digest,
         )
         self._handshake_sink(handshake)
 
+    # --- Ingress ---
     def process_packet(self, packet_data: Dict[str, Union[int, float]]):
-        """
-        The main ingress point for network packets.
-        """
+        """The main ingress point for network packets."""
         try:
             ts, ts_utc = self._safe_now()
             event = PacketEventSchema.from_dict(packet_data, service_id=self._id)
             event.timestamp, event.timestamp_utc = ts, ts_utc
             try:
                 event.score = self._model.predict(event)
+                if getattr(self._model, "_model", None) is None:
+                    self._predict_fallback_uses += 1
             except Exception as e:
                 print(f"[{self._id}] model predict failed, using heuristic. err={e}")
                 self._predict_errors += 1
@@ -657,7 +675,6 @@ class TernaryServerFirewall:
             "hi": round(hi_thresh, 4),
             "lo": round(lo_thresh, 4),
         }
-        
         event.digest = self._append_chain("event", event_meta)
         head = (event.digest or "")[:8]
 
@@ -671,8 +688,8 @@ class TernaryServerFirewall:
             event.state = FirewallState.VULNERABLE
         else:
             event.state = FirewallState.SECURE
-            
-        # audit trail upgrade: add a "classify" record after the state is set
+
+        # add a "classify" record after state is set
         class_meta = {
             "event_id": event.event_id,
             "ts": event.timestamp_utc,
@@ -684,9 +701,8 @@ class TernaryServerFirewall:
         }
         self._append_chain("classify", class_meta)
 
-
         masked = self._masked(event.signals)
-        
+
         # action based on state
         if event.state in (FirewallState.CRITICAL, FirewallState.VULNERABLE):
             if self._debounced(event.state):
@@ -696,5 +712,300 @@ class TernaryServerFirewall:
                     print(f"[{event.event_id[:8]}|{head}] 🟥 CRITICAL THREAT | score={event.score:.4f} ≥ {hi_thresh:.2f} | T={self._temperature:+.2f} hi={hi_thresh:.2f} lo={lo_thresh:.2f} | payload={masked}")
                 else:
                     print(f"[{event.event_id[:8]}|{head}] 🟧 VULNERABILITY DETECTED | score={event.score:.4f} | T={self._temperature:+.2f} hi={hi_thresh:.2f} lo={lo_thresh:.2f} | payload={masked}")
-                
                 self._alert_sink(event)
+                decision, participants, res_id = self._resolve_ambiguity(event)
+                self._log_handshake(event, decision, participants, res_id)
+        else:
+            print(f"[{event.event_id[:8]}|{head}] 🟩 secure | score={event.score:.4f} | payload={masked}")
+
+        self._alerts_total[event.state] += 1
+        self._scores.append(event.score)
+        self._hi_lo_hist.append((hi_thresh, lo_thresh, self._temperature))
+        self._ts_hist.append(self._clock())
+        if len(self._scores) > 1000:
+            self._scores = self._scores[-1000:]
+        return event.state
+
+    def force_handshake(
+        self,
+        event_id: str,
+        decision: TernaryLogic,
+        participants: Dict[str, str],
+        happened: str,
+        learned: str,
+        why: str,
+        better: str,
+    ):
+        """Allows a handshake to be logged retroactively or for testing."""
+        if not self._handshake_budget_ok():
+            print(f"[budget] manual handshake for {event_id[:8]} suppressed. budget exhausted.")
+            return
+
+        ts, ts_utc = self._safe_now()
+        resolution_id = str(uuid.uuid4())
+
+        # resolution -> chain
+        res_meta = {
+            "resolution_id": resolution_id,
+            "ts": ts_utc,
+            "source_event_id": event_id,
+            "decision": decision.name,
+            "participants": participants,
+            "resolver_source": "manual_override",
+            "timeout_s": 0.0,
+        }
+        res_digest = self._append_chain("resolution", res_meta)
+
+        res = IncidentResolutionSchema(
+            resolution_id=resolution_id,
+            timestamp=ts,
+            timestamp_utc=ts_utc,
+            source_event_id=event_id,
+            decision=decision,
+            participants=participants,
+            context={"source": "manual_handshake"},
+            resolver_source="manual_override",
+            digest=res_digest,
+        )
+        self._resolution_sink(res)
+
+        # handshake -> chain
+        hs_meta = {
+            "handshake_id": str(uuid.uuid4()),
+            "ts": ts_utc,
+            "source_event_id": event_id,
+            "resolution_id": resolution_id,
+            "what_happened": happened,
+        }
+        hs_digest = self._append_chain("handshake", hs_meta)
+
+        handshake = HandshakeSchema(
+            handshake_id=hs_meta["handshake_id"],
+            timestamp=ts,
+            timestamp_utc=hs_meta["ts"],
+            source_event_id=hs_meta["source_event_id"],
+            what_happened=happened,
+            who_was_involved=participants,
+            what_was_learned=learned,
+            why_it_happened=why,
+            what_to_do_better=better,
+            resolution_id=resolution_id,
+            digest=hs_digest,
+        )
+        self._handshake_sink(handshake)
+
+# --- Verification Utilities ---
+def verify_full_chain(chain_path: str) -> Tuple[bool, int]:
+    """
+    Verifies chain continuity across current and rotated files.
+    Returns (ok, n_records).
+    """
+    # Gather files: current + *.rotated in chronological order
+    base = os.path.abspath(chain_path)
+    dirn = os.path.dirname(base)
+    patt = os.path.basename(base) + ".*.rotated"
+    files = sorted(glob.glob(os.path.join(dirn, patt))) + [base]
+
+    prev_digest = None
+    n = 0
+    for fp in files:
+        if not os.path.exists(fp):
+            continue
+        with open(fp, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                rec = json.loads(line)
+                if rec.get("prev") != prev_digest:
+                    # continuation record after rotation may reference last head of previous file
+                    # which is exactly prev_digest; any mismatch is a break.
+                    return (False, n)
+                # recompute digest and compare (integrity)
+                s = json.dumps({"prev": rec.get("prev"), "payload": rec.get("payload")},
+                               sort_keys=True, separators=(",", ":")).encode("utf-8")
+                expect = hmac.new(_HMAC_KEY, s, hashlib.sha256).hexdigest()
+                if rec.get("digest") != expect:
+                    return (False, n)
+                prev_digest = rec.get("digest")
+                n += 1
+    return (True, n)
+
+# --- Test / Demo Harness ---
+def _get_chain_digests(path: str) -> List[str]:
+    digests = []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                try:
+                    rec = json.loads(line)
+                    digests.append(rec["digest"])
+                except json.JSONDecodeError:
+                    pass
+    except FileNotFoundError:
+        pass
+    return digests
+
+def _smoke():
+    fw = TernaryServerFirewall(seed=7)
+    fw.set_temperature(+0.8)
+    hi, lo = fw.thresholds()
+    assert 0.05 <= lo < hi <= 0.95
+    e = {"signal_a": 1.8, "signal_b": 1.9, "signal_c": 0.2}
+    s1 = fw.process_packet(e)
+    assert s1 in (FirewallState.VULNERABLE, FirewallState.CRITICAL)
+    s2 = fw.process_packet(e)
+    assert s2 in (FirewallState.VULNERABLE, FirewallState.CRITICAL)
+    m = fw.metrics
+    assert "effective_hi" in m and "current_temperature" in m
+    print("[smoke] ok")
+
+def _fuzz(n=200):
+    print("\n--- running micro fuzz test ---")
+    fw = TernaryServerFirewall(seed=11)
+    for _ in range(n):
+        pkt = {
+            "signal_a": random.uniform(-5, 10),
+            "signal_b": random.uniform(-5, 10),
+            "signal_c": random.uniform(-5, 10),
+            "context": {"reason": "fuzz", "ip": "9.9.9.9", "user_id": "nope"},
+        }
+        st = fw.process_packet(pkt)
+        assert st in (FirewallState.SECURE, FirewallState.VULNERABLE, FirewallState.CRITICAL)
+    print("[fuzz] ok")
+    ok, cnt = verify_full_chain(CFG_CHAIN_PATH)
+    if not ok:
+        raise AssertionError("Chain continuity/integrity verification failed")
+    print(f"[verify] chain verified across files, {cnt} records.")
+
+def simulate_traffic_stream(firewall: TernaryServerFirewall, num_packets: int = 10, sleep_s: float = 0.5):
+    print(f"\n--- simulating {num_packets} packets ---")
+    rng = random.Random(1234)
+    for i in range(num_packets):
+        packet_data = {
+            "signal_a": rng.uniform(0.1, 1.5),
+            "signal_b": rng.uniform(0.1, 1.5),
+            "signal_c": rng.uniform(0.1, 1.5),
+        }
+        if i == 5:
+            print("\ninjecting a synthetic security threat...")
+            packet_data.update({
+                "signal_a": 1.8, "signal_b": 1.9, "signal_c": 0.2,
+                "context": {"source": "threat_harness", "reason": "synthetic_violation", "ip": "1.1.1.1", "email": "test@example.com"}
+            })
+        sig_preview = {k: packet_data[k] for k in ("signal_a","signal_b","signal_c") if k in packet_data}
+        print(f"\nprocessing packet {i+1}: {firewall._masked(sig_preview)}")
+        firewall.process_packet(packet_data)
+        time.sleep(sleep_s)
+
+if __name__ == "__main__":
+    # clean chain file for deterministic demo runs
+    if os.path.exists(CFG_CHAIN_PATH):
+        try:
+            os.remove(CFG_CHAIN_PATH)
+        except Exception:
+            pass
+
+    def json_alert_sink(ev: PacketEventSchema):
+        print(json.dumps({
+            "event": ev.event_id,
+            "state": ev.state.name,
+            "score": round(ev.score,4),
+            "ts": ev.timestamp_utc,
+            "service": ev.service_id,
+            "digest": ev.digest[:8] if ev.digest else None
+        }))
+
+    _smoke()
+    _fuzz()
+
+    print("\n\n--- full simulation ---")
+    firewall = TernaryServerFirewall(seed=99, alert_sink=json_alert_sink)
+    simulate_traffic_stream(firewall, num_packets=10, sleep_s=0.2)
+    print("\n--- changing temperature to be more paranoid ---")
+    firewall.set_temperature(-0.5)
+    simulate_traffic_stream(firewall, num_packets=10, sleep_s=0.2)
+
+    print("\n--- demonstrating force_handshake() and agent log ---")
+    firewall.force_handshake(
+        event_id="retro-event-123",
+        decision=TernaryLogic.AFFIRM,
+        participants={"ops_lead": "j.w", "analyst": "a.l"},
+        happened="a critical alert was handled manually and logged retroactively.",
+        learned="the manual process is robust, but a real-time tool is required.",
+        why="the firewall was offline due to a power outage.",
+        better="implement a battery backup for the firewall service."
+    )
+    firewall._log_agent_reflection(
+        summary="Retrospective analysis of a manual handshake event.",
+        flags_reminders="Potential for future outage events. Monitor power grid stability.",
+        milestones_events="First manual handshake logged. Audit chain integrity validated.",
+        lesson_learnt="Human intervention is valid but costly; log meticulously.",
+        approach_adjustment="Increase heartbeat checks with the power supply.",
+        anticipation_log="Expect similar events during peak power usage.",
+        temporal_marker="Post-manual-handshake review.",
+        notes="All manual events must include clear rationale.",
+        alberts_reflection_insights="The audit chain is memory; manual logs are self-correction.",
+        impact_barometer=11,
+        mood_check=13
+    )
+
+    ok, cnt = verify_full_chain(CFG_CHAIN_PATH)
+    print(f"\nFinal Metrics:\n{json.dumps(firewall.metrics, indent=2)}")
+    print(f"\nChain verification: {'OK' if ok else 'FAIL'} ({cnt} records)")
+{
+ "system_details_report": {
+   "host_info": {
+     "host_enabled": true,
+     "location": "elisabetinergasse 25, top 10, graz, austria, skybase",
+    https://maps.app.goo.gl/692okbbLj2DzscKr6
+<iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d877.9040280724888!2d15.427564080381483!3d47.06934385195899!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x476e3576deb2fd91%3A0xde001f22c5ccc775!2sElisabethinergasse%2025%2C%208020%20Graz!5e1!3m2!1sen!2sat!4v1756567895708!5m2!1sen!2sat" width="600" height="450" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+47.069116952452305, 15.427497770166003
+https://heavy-heath-489.notion.site/25fa87cebd6f8053bcc0cf6c7b2fb659?pvs=73
+https://github.com/eriirfos-eng/-ternlang/13/𒀯
+     "elevation_m": 355,
+     "time": "01:07 (UTC -12:00)",
+     "email": "eriirfos@gmail.com",
+     "linkedin_profile": "in/simeon-kepp",
+     "linkedin_company": "company/rfi-irfos",
+     "osf_url": "https://osf.io/rzvyg",
+     "orcid_url": "https://orcid.org/0009-0009-6922-9552"
+   },
+   "operational_protocol": {
+     "name": ""organic and digital intelligence and universial intelligence in the loop fallback",",
+     "status": "active and canonical",
+     "ternary_logic_roles": {
+       "oi": "human (simeon)",
+       "di": "host machine (hp zbook 15)",
+       "ui": "canonical repository (github)"
+     },
+     "primary_source": "https://github.com/eriirfos-eng/-ternlang/tree/459cfd0860183e6321e2e0371c614c50dc447db8/13/%F0%92%80%AF
+",
+https://colab.research.google.com/drive/1i7HO-SlG5scLUgGQdN-yZF-Zjp7A-hBM
+https://colab.research.google.com/drive/1i7HO-SlG5scLUgGQdN-yZF-Zjp7A-hBM?usp=sharing
+     "version_control_system": "git",
+     "database_role": "real-time state observation (not canonical source)"
+   },
+   "report_details": {
+     "date_generated": "2025-08-30 13:07:27"
+   },
+   "hardware_information": {
+     "hardware_model": "Hewlett-Packard HP ZBook 15",
+     "memory_gib": 8.0,
+     "processor": "Intel® Core™ i7-4800MQ × 8",
+     "graphics": "Intel® HD Graphics 4600 (HSW GT2)",
+     "graphics_1": "NVE6",
+     "disk_capacity_gb": 256.1
+   },
+   "software_information": {
+     "firmware_version": "L70 Ver. 01.47",
+     "os_name": "Ubuntu 24.04.2 LTS",
+     "os_build": null,
+     "os_type": "64-bit",
+     "gnome_version": 46,
+     "windowing_system": "Wayland",
+     "kernel_version": "Linux 6.14.0-27-generic"
+   }
+ }
+}
+
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
