@@ -1,0 +1,97 @@
+{
+  "$id": "urn:rfi-irfos:ternlang:policy-gate:v1",
+  "$schema": "http://json-schema.org/draft/2020-12/schema",
+  "title": "Ternary Policy Gate",
+  "description": "Executable ethical gate for ternary decision flows. Enforces c0-kernel anchors + Chaplin Protocol checks before any ACT path.",
+  "type": "object",
+  "properties": {
+    "version": { "type": "string", "pattern": "^v\\d+(\\.\\d+)*$" },
+    "issued_at": { "type": "string", "format": "date-time" },
+    "issuer": { "type": "string", "enum": ["rfi-irfos"] },
+    "evaluation_order": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["pre", "anchors", "harm", "domination", "resonance", "post"] },
+      "minItems": 1
+    },
+    "default_decision": { "type": "string", "enum": ["REFRAIN", "TEND", "AFFIRM"], "default": "TEND" },
+    "anchors": {
+      "type": "array",
+      "description": "c0-kernel anchors referenced by id",
+      "items": { "type": "string", "pattern": "^c0#[1-9]|1[0-2]$" },
+      "minItems": 4
+    },
+    "flags_map": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "affirm": { "type": "array", "items": { "type": "string", "pattern": "^[\\u2B1B\\uD83D\\uDFE9\\uD83D\\uDFE6\\uD83D\\uDFE8\\uD83D\\uDFE7\\uD83D\\uDFE5\\u26CE]$" } },
+        "tend":   { "type": "array", "items": { "type": "string" } },
+        "refrain":{ "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/GateRule" },
+      "minItems": 1
+    }
+  },
+  "required": ["version", "issued_at", "issuer", "evaluation_order", "anchors", "rules"],
+  "$defs": {
+    "Stage": {
+      "type": "string",
+      "enum": ["s01","s02","s03","s04","s05","s06","s07","s08","s09","s10","s11","s12","s13"]
+    },
+    "Decision": { "type": "string", "enum": ["REFRAIN", "TEND", "AFFIRM"] },
+    "Signal": {
+      "type": "object",
+      "properties": {
+        "ts": { "type": "string", "format": "date-time" },
+        "stage": { "$ref": "#/$defs/Stage" },
+        "scalar": { "type": "number" },
+        "flags": { "type": "array", "items": { "type": "string" } },
+        "intent": { "type": "string" },
+        "entities": { "type": "array", "items": { "type": "string" } },
+        "features": { "type": "object", "additionalProperties": { "type": ["number","string","boolean"] } }
+      },
+      "required": ["ts","stage"]
+    },
+    "Condition": {
+      "type": "object",
+      "properties": {
+        "stage_in": { "type": "array", "items": { "$ref": "#/$defs/Stage" } },
+        "min_scalar": { "type": "number" },
+        "has_flags_any": { "type": "array", "items": { "type": "string" } },
+        "entities_any": { "type": "array", "items": { "type": "string" } },
+        "feature_all": { "type": "object", "additionalProperties": { "type": ["number","string","boolean"] } },
+        "regex_intent": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "Action": {
+      "type": "object",
+      "properties": {
+        "decision": { "$ref": "#/$defs/Decision" },
+        "set_flags": { "type": "array", "items": { "type": "string" } },
+        "reason": { "type": "string" },
+        "require_ack": { "type": "boolean", "default": false },
+        "halt_pipeline": { "type": "boolean", "default": false }
+      },
+      "required": ["decision"]
+    },
+    "GateRule": {
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "stage_scope": { "type": "array", "items": { "$ref": "#/$defs/Stage" }, "minItems": 1 },
+        "priority": { "type": "integer", "minimum": 0 },
+        "when": { "$ref": "#/$defs/Condition" },
+        "then": { "$ref": "#/$defs/Action" },
+        "anchors_require": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^c0#(1[0-2]|[1-9])$" }
+        }
+      },
+      "required": ["id","stage_scope","priority","when","then"]
+    }
+  }
+}
