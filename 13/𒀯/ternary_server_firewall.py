@@ -1,5 +1,5 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v10.3
+Ternary Resolution Firewall - The 3-6-9 Protocol v10.4
 The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
 and a self-correcting logic engine.
 
@@ -22,6 +22,8 @@ from enum import IntEnum
 from pathlib import Path
 from collections import deque
 import argparse
+from threading import Lock
+import hashlib
 
 # --- TOML compatibility guard for Python < 3.11 ---
 try:
@@ -50,6 +52,9 @@ DRY_RUN = False
 _last_audit_ts = 0.0
 AUDIT_MIN_INTERVAL_S = 5.0
 _last_committed_state = None
+_state_lock = Lock()
+CONFIG_PATH = None
+CONFIG_SHA256 = None
 
 # ====================
 # FALLBACK MECHANISM & THRESHOLDS
@@ -57,6 +62,11 @@ _last_committed_state = None
 # Hard-coded expectation of a minimum 10% risk of failure.
 FALLBACK_RISK_THRESHOLD = 0.10
 
+"""
+Threshold semantics:
+- *_min: lower is worse (below align_min adds ALIGN pressure; below refrain_min = hard REFRAIN)
+- *_max: higher is worse (above align_max adds ALIGN pressure; above refrain_max = hard REFRAIN)
+"""
 # These thresholds define the ternary states for each metric.
 # NOTE: In a production environment, these should be loaded from a config file.
 THRESHOLDS = {
@@ -92,12 +102,31 @@ def _require(d, path):
         cur = cur[k]
     return cur
 
+def _sha256(path):
+    """Generates a SHA256 hash of a file."""
+    try:
+        with open(path,"rb") as f: 
+            return hashlib.sha256(f.read()).hexdigest()
+    except Exception:
+        return None
+
 def load_config(path="firewall.toml"):
     """Loads and validates configuration from a TOML file."""
+    global CONFIG_PATH, CONFIG_SHA256
+    CONFIG_PATH = path
+    
     try:
         with open(path,"rb") as f:
             cfg = tomllib.load(f)
         
+        # Check for group/other writable permissions
+        try:
+            st = os.stat(path)
+            if (st.st_mode & 0o022):
+                print(f"CONFIG WARN: {path} is group/other writable")
+        except Exception:
+            pass
+
         # sanity checks
         _require(cfg, "risk.fallback_threshold")
         _require(cfg, "risk.audit_min_interval_s")
@@ -122,6 +151,7 @@ def load_config(path="firewall.toml"):
         for domain in ("hardware","software","network","environmental"):
             T[domain] = cfg.get(domain, THRESHOLDS.get(domain, {}))
         THRESHOLDS = T
+        CONFIG_SHA256 = _sha256(path)
         print("CONFIG: Successfully loaded thresholds from firewall.toml")
     except Exception as e:
         print(f"CONFIG WARN: using built-in thresholds ({e})")
@@ -131,6 +161,13 @@ def load_config(path="firewall.toml"):
 # ====================
 FORGIVENESS_LOG_FILE = Path("forgiveness_log.json")
 MAX_FORGIVENESS_OFFERS = 490 # 7x70
+
+def _tighten_perms(path: Path):
+    """Sets file permissions to owner read/write only."""
+    try: 
+        os.chmod(path, 0o600)
+    except Exception: 
+        pass
 
 def _atomic_write(path: Path, payload: dict):
     """
@@ -157,6 +194,7 @@ def load_forgiveness_log():
 def save_forgiveness_log(data):
     """Saves the forgiveness counter to a log file using an atomic write."""
     _atomic_write(FORGIVENESS_LOG_FILE, data)
+    _tighten_perms(FORGIVENESS_LOG_FILE)
 
 def offer_personal_grace():
     """Human-callable function to reset the forgiveness counter."""
@@ -284,9 +322,10 @@ def guarded_audit(event_data: dict, state: TernState):
     """Rate-limits the audit to prevent spamming using monotonic time."""
     global _last_audit_ts
     now = time.monotonic()
-    if now - _last_audit_ts < AUDIT_MIN_INTERVAL_S and state != TernState.REFRAIN:
-        return
-    _last_audit_ts = now
+    with _state_lock:
+        if now - _last_audit_ts < AUDIT_MIN_INTERVAL_S and state != TernState.REFRAIN:
+            return
+        _last_audit_ts = now
     trigger_mandatory_audit(event_data)
     
 def clamp(x, lo=0.0, hi=1.0): 
@@ -352,6 +391,12 @@ def resolve_moe13_state(metrics: dict) -> TernState:
     nw = metrics["network_information"]
     env = metrics["environmental_information"]
     
+    # --- Hard Cliffs (No Negotiation with Physics) ---
+    if hw["disk_free_gb"] <= 1.0:
+        return TernState.REFRAIN
+    if nw["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["refrain_max"] * 2:
+        return TernState.REFRAIN
+    
     current_competence = get_competence_vector(metrics)
     
     # === Hysteresis Bias ===
@@ -386,11 +431,12 @@ def resolve_moe13_state(metrics: dict) -> TernState:
     }
     W_SUM = sum(WEIGHTS.values())
 
+    procs_per_core = sw["active_processes"] / max(1, hw["processor_cores_total"])
     score_raw = 0.0
     # Explicit integer casts for clarity
     score_raw += WEIGHTS["mem_available"] * int(hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
     score_raw += WEIGHTS["disk_free"] * int(hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
-    score_raw += WEIGHTS["procs"] * int(sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"])
+    score_raw += WEIGHTS["procs"] * int(procs_per_core > (THRESHOLDS["software"]["active_processes"]["align_max"] / max(1, hw["processor_cores_total"])))
     score_raw += WEIGHTS["latency"] * int(nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
     score_raw += WEIGHTS["loss"] * int(nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
     score_raw += WEIGHTS["solar"] * int(env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
@@ -467,14 +513,16 @@ def execute_firewall_action(state: TernState, metrics: dict, competence: dict):
         "action": action_map[state],
         "message": message,
         "state_value": state.value,
-        "source": "firewall_v10.3.py",
+        "source": "firewall_v10.4.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
             "ui_signed": True
         },
         "metrics_digest": _digest(metrics),
-        "moe_competence": competence
+        "moe_competence": competence,
+        "config_path": CONFIG_PATH,
+        "config_sha256": CONFIG_SHA256,
     }
 
     take_physical_action(state)
@@ -498,21 +546,21 @@ def maybe_execute(state: TernState, metrics: dict, competence: dict):
     Executes firewall action only on state transition.
     """
     global _last_committed_state
-    if state != _last_committed_state:
+    changed = False
+    with _state_lock:
+        if state != _last_committed_state:
+            changed = True
+            _last_committed_state = state
+    
+    if changed:
         execute_firewall_action(state, metrics, competence)
-        _last_committed_state = state
     else:
-        # quiet audit heartbeat (rare) — keep rate-limited
         heartbeat_data = {
             "name":"Ternary Firewall Heartbeat",
             "action":"STEADY",
             "state_value":state.value,
-            "source":"firewall_v10.3.py",
-            "oiuidi_signatures":{
-                "oi_signed":True,
-                "di_signed":True,
-                "ui_signed":True
-            },
+            "source":"firewall_v10.4.py",
+            "oiuidi_signatures":{"oi_signed":True,"di_signed":True,"ui_signed":True},
             "metrics_digest": _digest(metrics)
         }
         guarded_audit(heartbeat_data, state)
@@ -523,6 +571,8 @@ def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="Log actions without executing them.")
     ap.add_argument("--config", type=str, default="firewall.toml", help="Path to firewall.toml")
+    ap.add_argument("--loop", type=float, default=0.0, help="Seconds between checks; 0 for one-shot.")
+    ap.add_argument("--exit-code", action="store_true", help="Nonzero exit code on ALIGN/REFRAIN in one-shot.")
     args, unknown = ap.parse_known_args()
     DRY_RUN = args.dry_run
     return args
@@ -534,33 +584,48 @@ if __name__ == "__main__":
     args = parse_args()
     load_config(args.config)
     
-    # Simulate a critical failure (State 9)
-    print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
-    fixed = FixedSamplers(lat=250, loss=15.0) # Veto trigger
-    metrics = get_realtime_metrics_from_system(fixed)
-    metrics["hardware_information"]["memory_available_gib"] = 0.4
-    competence = get_competence_vector(metrics)
-    state = resolve_moe13_state(metrics)
-    maybe_execute(state, metrics, competence)
+    if args.loop > 0:
+        sampler = Samplers()
+        while True:
+            metrics = get_realtime_metrics_from_system(sampler)
+            competence = get_competence_vector(metrics)
+            state = resolve_moe13_state(metrics)
+            maybe_execute(state, metrics, competence)
+            time.sleep(args.loop)
+    else:
+        # One-shot mode with deterministic demos for testing
+        print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
+        metrics = get_realtime_metrics_from_system(FixedSamplers(lat=1001, loss=15.0)) # Veto trigger
+        metrics["hardware_information"]["disk_free_gb"] = 0.5
+        competence = get_competence_vector(metrics)
+        state = resolve_moe13_state(metrics)
+        maybe_execute(state, metrics, competence)
 
-    print("\n" + "="*50 + "\n")
+        print("\n" + "="*50 + "\n")
 
-    # Simulate a deliberate ALIGN state with emergent pressure
-    print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) WITH SYNERGISTIC PRESSURE ---")
-    fixed = FixedSamplers(lat=201)
-    metrics = get_realtime_metrics_from_system(fixed)
-    metrics["hardware_information"]["memory_available_gib"] = 1.4
-    metrics["software_information"]["active_processes"] = 260
-    competence = get_competence_vector(metrics)
-    state = resolve_moe13_state(metrics)
-    maybe_execute(state, metrics, competence)
+        # Simulate a deliberate ALIGN state with emergent pressure
+        print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) WITH SYNERGISTIC PRESSURE ---")
+        metrics = get_realtime_metrics_from_system(FixedSamplers(lat=201))
+        metrics["hardware_information"]["memory_available_gib"] = 1.4
+        metrics["software_information"]["active_processes"] = 260
+        competence = get_competence_vector(metrics)
+        state = resolve_moe13_state(metrics)
+        maybe_execute(state, metrics, competence)
 
-    print("\n" + "="*50 + "\n")
+        print("\n" + "="*50 + "\n")
+        
+        # Simulate a harmonious state (State 3)
+        print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
+        metrics = get_realtime_metrics_from_system(FixedSamplers())
+        competence = get_competence_vector(metrics)
+        state = resolve_moe13_state(metrics)
+        maybe_execute(state, metrics, competence)
     
-    # Simulate a harmonious state (State 3)
-    print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
-    fixed = FixedSamplers()
-    metrics = get_realtime_metrics_from_system(fixed)
-    competence = get_competence_vector(metrics)
-    state = resolve_moe13_state(metrics)
-    maybe_execute(state, metrics, competence)
+    if args.exit_code:
+        import sys
+        if state == TernState.CO_CREATE:
+            sys.exit(0)
+        elif state == TernState.ALIGN:
+            sys.exit(1)
+        else:
+            sys.exit(2)
