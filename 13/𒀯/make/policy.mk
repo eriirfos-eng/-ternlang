@@ -1,25 +1,40 @@
--policy-validate:
--	jq -e . 13/𒀭/policy/c0_gate.v1.json >/dev/null
-+policy-validate:
-+	jq -e . 13/𒀯/policy/c0_gate.v1.json >/dev/null
+# 13/𒀯/make/policy.mk
 
--policy-run:
--	python3 13/𒀭/agents/chaplin_guard.py | tee -a 13/𒀭/logs/policy.jsonl
-+policy-run:
-+	python3 13/𒀯/agents/chaplin_guard.py | tee -a 13/𒀯/logs/policy.jsonl
-.PHONY: policy-preflight
+.PHONY: policy-preflight policy-validate policy-run demo-guard policy-peek
+
 policy-preflight:
-	@test -d 13/𒀯 || (echo "rune mismatch: expected 13/𒀯"; exit 1)
+	@test -d '13/𒀯' || (echo "rune mismatch: expected 13/𒀯"; exit 1)
 
 policy-validate: policy-preflight
+	jq -e . '13/𒀯/policy/c0_gate.v1.json' >/dev/null
+
 policy-run: policy-preflight
-python3 - <<'PY'
-import json, pathlib
-p=pathlib.Path("13/𒀯/logs/policy.jsonl")
-latest={}
-for l in p.read_text(encoding="utf-8").splitlines():
-    try:j=json.loads(l); latest[j.get("stage","?")]=j
-    except: pass
+	mkdir -p '13/𒀯/logs'
+	python3 '13/𒀯/agents/chaplin_guard.py' | tee -a '13/𒀯/logs/policy.jsonl'
+
+demo-guard: policy-validate policy-run
+	@echo "policy demo complete"
+
+# terminal-only rail view
+policy-peek:
+	@python3 - <<'PY'
+import json, pathlib, sys
+p = pathlib.Path("13/𒀯/logs/policy.jsonl")
+if not p.exists():
+    print("no policy.jsonl yet. run: make demo-guard"); sys.exit(1)
+latest = {}
+for line in p.read_text(encoding="utf-8").splitlines():
+    try:
+        j = json.loads(line); latest[j.get("stage","?")] = j
+    except Exception:
+        pass
 for i in range(1,14):
-    s=f"s{i:02d}"; r=latest.get(s); print(f"{s}: {'—' if not r else f'{r['decision']} {(r.get('flags') or [])} {r.get('reason','')}'.strip()}")
+    s = f"s{i:02d}"
+    r = latest.get(s)
+    if not r:
+        print(f"{s}: —")
+    else:
+        flags = " ".join(r.get("flags") or [])
+        reason = r.get("reason","")
+        print(f"{s}: {r['decision']:7s} {flags}  {reason}")
 PY
