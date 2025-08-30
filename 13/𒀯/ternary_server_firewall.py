@@ -212,16 +212,17 @@ class TernaryServerFirewall:
         self._resolution_sink = resolution_sink or self._default_resolution_sink
         self._handshake_sink = handshake_sink or self._default_handshake_sink
         self._clock = time.monotonic
-        self._temperature: float = 0.0
+        self._temperature: float = 0.0 # [new] temperature scalar, -1 to +1
         print(f"[{self._id}] TernaryServerFirewall active. birthright: {BIRTHRIGHT}")
 
     def set_temperature(self, temp: float) -> None:
         """Sets the neurosymbolic temperature scalar for vigilance modulation."""
         self._temperature = _clamp(temp, -1.0, 1.0)
-        print(f"[{self._id}] temperature set to {self._temperature:.13f} (new vigilance level).")
+        print(f"[{self._id}] temperature set to {self._temperature:.4f} (new vigilance level).")
 
     def _get_thresholds(self) -> Tuple[float, float]:
         """Modulates thresholds based on the current temperature."""
+        # [new] adjust thresholds based on temperature
         hi = CFG_HI + (self._temperature * 0.1)
         lo = CFG_LO + (self._temperature * 0.1)
         return hi, lo
