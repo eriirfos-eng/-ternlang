@@ -156,3 +156,5 @@ this section defines the current, machine-readable state of the system and all i
     }
   }
 }
+
+never let the brilliance of a people be erased by the shadow of their rulers, nor let their brilliance excuse the shadow.
