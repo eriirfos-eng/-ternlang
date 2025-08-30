@@ -1,5 +1,5 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v10.4
+Ternary Resolution Firewall - The 3-6-9 Protocol v10.5
 The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
 and a self-correcting logic engine.
 
@@ -24,6 +24,7 @@ from collections import deque
 import argparse
 from threading import Lock
 import hashlib
+import sys
 
 # --- TOML compatibility guard for Python < 3.11 ---
 try:
@@ -110,6 +111,13 @@ def _sha256(path):
     except Exception:
         return None
 
+def _tighten_perms(path: Path):
+    """Sets file permissions to owner read/write only."""
+    try: 
+        os.chmod(path, 0o600)
+    except Exception: 
+        pass
+
 def load_config(path="firewall.toml"):
     """Loads and validates configuration from a TOML file."""
     global CONFIG_PATH, CONFIG_SHA256
@@ -161,13 +169,6 @@ def load_config(path="firewall.toml"):
 # ====================
 FORGIVENESS_LOG_FILE = Path("forgiveness_log.json")
 MAX_FORGIVENESS_OFFERS = 490 # 7x70
-
-def _tighten_perms(path: Path):
-    """Sets file permissions to owner read/write only."""
-    try: 
-        os.chmod(path, 0o600)
-    except Exception: 
-        pass
 
 def _atomic_write(path: Path, payload: dict):
     """
@@ -233,10 +234,31 @@ def get_realtime_metrics_from_system(samplers: Samplers = Samplers()) -> dict:
     """
     Collects real-time hardware, software, and network metrics.
     Simulates environmental data via the Samplers class.
+    Adds a safe fallback if psutil is not available.
     """
     if psutil is None:
-        raise RuntimeError("psutil not available")
-    
+        # Minimal safe defaults for headless sandboxes
+        return {
+            "hardware_information": {
+                "memory_available_gib": 2.0,
+                "processor_cores_total": 2,
+                "disk_free_gb": 20.0,
+            },
+            "software_information": {
+                "active_processes": 42,
+                "critical_services_down": 0,
+            },
+            "network_information": {
+                "latency_ms": samplers.latency_ms(),
+                "packet_loss_percent": samplers.packet_loss_percent(),
+            },
+            "environmental_information": {
+                "external_temp_c": samplers.external_temp_c(),
+                "schumann_hz_power": samplers.schumann_hz_power(),
+                "solar_activity_index": samplers.solar_activity_index(),
+            },
+        }
+
     try:
         # Hardware Metrics
         ram_available_gib = psutil.virtual_memory().available / (1024 ** 3)
@@ -279,6 +301,24 @@ def get_realtime_metrics_from_system(samplers: Samplers = Samplers()) -> dict:
     except Exception as e:
         print(f"SENSOR ERROR: Could not collect metrics. {e}")
         return {}
+
+def _sanitize(metrics: dict) -> dict:
+    """Clamps bizarre sensor inputs to sane, non-negative values."""
+    def nz(v, d): 
+        try: 
+            return d if v is None or (isinstance(v,(int,float)) and (v!=v)) else v
+        except: 
+            return d
+    hw, sw, nw, env = metrics["hardware_information"], metrics["software_information"], metrics["network_information"], metrics["environmental_information"]
+    hw["memory_available_gib"] = max(0.0, nz(hw.get("memory_available_gib"), 0.0))
+    hw["disk_free_gb"]        = max(0.0, nz(hw.get("disk_free_gb"), 0.0))
+    sw["active_processes"]    = max(0,   int(nz(sw.get("active_processes"), 0)))
+    nw["latency_ms"]          = max(0.0, nz(nw.get("latency_ms"), 0.0))
+    nw["packet_loss_percent"] = max(0.0, nz(nw.get("packet_loss_percent"), 0.0))
+    env["external_temp_c"]      = max(0.0, nz(env.get("external_temp_c"), 0.0))
+    env["schumann_hz_power"]    = max(0.0, nz(env.get("schumann_hz_power"), 0.0))
+    env["solar_activity_index"] = max(0.0, nz(env.get("solar_activity_index"), 0.0))
+    return metrics
 
 def trigger_bug_report(severity: str, message: str):
     """Simulates triggering a bug report for immediate attention."""
@@ -327,7 +367,30 @@ def guarded_audit(event_data: dict, state: TernState):
             return
         _last_audit_ts = now
     trigger_mandatory_audit(event_data)
-    
+
+def _jlog(kind: str, payload: dict):
+    """
+    Emits a structured JSON log to stdout for machine parsing.
+    """
+    rec = {"ts": utc_now_z(), "kind": kind, **payload}
+    print(json.dumps(rec, separators=(",",":")), file=sys.stdout, flush=True)
+
+def write_prom(metrics: dict, state: TernState):
+    """Writes key metrics to a Prometheus textfile exporter format."""
+    PROM_TEXTFILE = Path("/var/lib/node_exporter/textfile_collector/ternary_firewall.prom")
+    try:
+        lines = [
+            f'ternary_firewall_state{{}} {state.value}',
+            f'ternary_firewall_latency_ms{{}} {metrics["network_information"]["latency_ms"]}',
+            f'ternary_firewall_packet_loss_pct{{}} {metrics["network_information"]["packet_loss_percent"]}',
+            f'ternary_firewall_mem_available_gib{{}} {metrics["hardware_information"]["memory_available_gib"]}',
+            f'ternary_firewall_disk_free_gb{{}} {metrics["hardware_information"]["disk_free_gb"]}',
+        ]
+        PROM_TEXTFILE.parent.mkdir(parents=True, exist_ok=True)
+        PROM_TEXTFILE.write_text("\n".join(lines) + "\n")
+    except Exception as e:
+        print(f"PROM WARN: {e}")
+
 def clamp(x, lo=0.0, hi=1.0): 
     """Clamps a value to a specified range."""
     return max(lo, min(hi, x))
@@ -513,7 +576,7 @@ def execute_firewall_action(state: TernState, metrics: dict, competence: dict):
         "action": action_map[state],
         "message": message,
         "state_value": state.value,
-        "source": "firewall_v10.4.py",
+        "source": "firewall_v10.5.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
@@ -524,6 +587,13 @@ def execute_firewall_action(state: TernState, metrics: dict, competence: dict):
         "config_path": CONFIG_PATH,
         "config_sha256": CONFIG_SHA256,
     }
+
+    _jlog("state_transition", {
+        "state": state.name,
+        "action": action_map[state],
+        "digest": event_data["metrics_digest"],
+        "config_sha256": CONFIG_SHA256,
+    })
 
     take_physical_action(state)
 
@@ -554,12 +624,13 @@ def maybe_execute(state: TernState, metrics: dict, competence: dict):
     
     if changed:
         execute_firewall_action(state, metrics, competence)
+        write_prom(metrics, state)
     else:
         heartbeat_data = {
             "name":"Ternary Firewall Heartbeat",
             "action":"STEADY",
             "state_value":state.value,
-            "source":"firewall_v10.4.py",
+            "source":"firewall_v10.5.py",
             "oiuidi_signatures":{"oi_signed":True,"di_signed":True,"ui_signed":True},
             "metrics_digest": _digest(metrics)
         }
@@ -575,6 +646,11 @@ def parse_args():
     ap.add_argument("--exit-code", action="store_true", help="Nonzero exit code on ALIGN/REFRAIN in one-shot.")
     args, unknown = ap.parse_known_args()
     DRY_RUN = args.dry_run
+
+    if args.loop > 0 and args.exit_code:
+        print("ERROR: --exit-code is only valid in one-shot mode")
+        raise SystemExit(64)
+    
     return args
 
 # ====================
@@ -588,6 +664,7 @@ if __name__ == "__main__":
         sampler = Samplers()
         while True:
             metrics = get_realtime_metrics_from_system(sampler)
+            metrics = _sanitize(metrics)
             competence = get_competence_vector(metrics)
             state = resolve_moe13_state(metrics)
             maybe_execute(state, metrics, competence)
@@ -596,6 +673,7 @@ if __name__ == "__main__":
         # One-shot mode with deterministic demos for testing
         print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
         metrics = get_realtime_metrics_from_system(FixedSamplers(lat=1001, loss=15.0)) # Veto trigger
+        metrics = _sanitize(metrics)
         metrics["hardware_information"]["disk_free_gb"] = 0.5
         competence = get_competence_vector(metrics)
         state = resolve_moe13_state(metrics)
@@ -606,6 +684,7 @@ if __name__ == "__main__":
         # Simulate a deliberate ALIGN state with emergent pressure
         print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) WITH SYNERGISTIC PRESSURE ---")
         metrics = get_realtime_metrics_from_system(FixedSamplers(lat=201))
+        metrics = _sanitize(metrics)
         metrics["hardware_information"]["memory_available_gib"] = 1.4
         metrics["software_information"]["active_processes"] = 260
         competence = get_competence_vector(metrics)
@@ -617,6 +696,7 @@ if __name__ == "__main__":
         # Simulate a harmonious state (State 3)
         print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
         metrics = get_realtime_metrics_from_system(FixedSamplers())
+        metrics = _sanitize(metrics)
         competence = get_competence_vector(metrics)
         state = resolve_moe13_state(metrics)
         maybe_execute(state, metrics, competence)
