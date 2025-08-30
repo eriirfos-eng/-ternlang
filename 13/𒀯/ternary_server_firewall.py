@@ -1,5 +1,5 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v10.1
+Ternary Resolution Firewall - The 3-6-9 Protocol v10.2
 The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
 and a self-correcting logic engine.
 
@@ -22,6 +22,7 @@ import argparse
 from enum import IntEnum
 from pathlib import Path
 from collections import deque
+import tomllib
 
 # ====================
 # TERNARY STATES
@@ -70,6 +71,27 @@ THRESHOLDS = {
 
 # Hysteresis buffer to prevent state flapping.
 LAST_STATES = deque(maxlen=5)
+
+def load_config(path="firewall.toml"):
+    """Loads configuration from a TOML file."""
+    try:
+        with open(path,"rb") as f:
+            cfg = tomllib.load(f)
+        
+        # Update global constants
+        global FALLBACK_RISK_THRESHOLD, AUDIT_MIN_INTERVAL_S, THRESHOLDS
+        FALLBACK_RISK_THRESHOLD = cfg["risk"]["fallback_threshold"]
+        AUDIT_MIN_INTERVAL_S    = cfg["risk"]["audit_min_interval_s"]
+        
+        # Rebuild THRESHOLDS from config
+        T = {}
+        for domain in ("hardware","software","network","environmental"):
+            domain_cfg = cfg.get(domain, {})
+            T[domain] = {k: v for k, v in domain_cfg.items()}
+        THRESHOLDS = T
+        print("CONFIG: Successfully loaded thresholds from firewall.toml")
+    except Exception as e:
+        print(f"CONFIG WARN: using built-in thresholds ({e})")
 
 # ====================
 # FORGIVENESS PROTOCOL
@@ -220,6 +242,10 @@ def guarded_audit(event_data: dict, state: TernState):
         return
     _last_audit_ts = now
     trigger_mandatory_audit(event_data)
+    
+def clamp(x, lo=0.0, hi=1.0): 
+    """Clamps a value to a specified range."""
+    return max(lo, min(hi, x))
 
 # ====================
 # TERNARY RESOLUTION TREE WITH MOE-13 LOGIC
@@ -235,18 +261,25 @@ def get_competence_vector(metrics: dict) -> dict:
     Axis 4: Tool and API Usage (Simulated)
     Axis 5: Persona and Tone Generation (Simulated)
     Axis 6: Safety, Ethics, and Policy (Critical Services)
+    
+    NOTE: Values are clamped to [0, 1] to prevent negative or >1.0 results.
     """
     hw = metrics["hardware_information"]
     sw = metrics["software_information"]
     nw = metrics["network_information"]
-    
+
+    latency_norm  = nw["latency_ms"] / max(1.0, THRESHOLDS["network"]["latency_ms"]["refrain_max"])
+    mem_norm      = hw["memory_available_gib"] / max(1e-6, THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
+    procs_norm    = sw["active_processes"] / max(1.0, THRESHOLDS["software"]["active_processes"]["refrain_max"])
+    crit_norm     = sw["critical_services_down"] / max(1.0, THRESHOLDS["software"]["critical_services_down"]["refrain_max"])
+
     return {
-        "syntax_and_grammar": 1.0 - (nw["latency_ms"] / THRESHOLDS["network"]["latency_ms"]["refrain_max"]),
-        "world_knowledge": min(1.0, (hw["memory_available_gib"] / THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])),
-        "logical_reasoning": min(1.0, (sw["active_processes"] / THRESHOLDS["software"]["active_processes"]["refrain_max"])),
-        "tool_usage": 1.0, # Assumed to be healthy for this symbolic model
-        "persona_and_tone": 1.0, # Assumed to be healthy for this symbolic model
-        "safety_and_ethics": 1.0 - (sw["critical_services_down"] / THRESHOLDS["software"]["critical_services_down"]["refrain_max"])
+        "syntax_and_grammar": clamp(1.0 - latency_norm),
+        "world_knowledge":    clamp(mem_norm),
+        "logical_reasoning":  clamp(1.0 - procs_norm),
+        "tool_usage":         1.0, # Assumed to be healthy
+        "persona_and_tone":   1.0, # Assumed to be healthy
+        "safety_and_ethics":  clamp(1.0 - crit_norm),
     }
 
 
@@ -263,22 +296,28 @@ def resolve_moe13_state(metrics: dict) -> TernState:
     nw = metrics["network_information"]
     env = metrics["environmental_information"]
     
-    # === Dual-Key Synergistic Routing ===
-    # Semantic Key (current state) + State Key (recent history)
     current_competence = get_competence_vector(metrics)
-    history_bias = sum(s.value for s in LAST_STATES) / len(LAST_STATES) if LAST_STATES else 0
-    synergy_score = 0.0
+    
+    # === Hysteresis Bias ===
+    history_bias = (sum(s.value for s in LAST_STATES) / len(LAST_STATES)) if LAST_STATES else TernState.CO_CREATE.value
+    bias_term = {TernState.CO_CREATE.value: -0.05, TernState.ALIGN.value: 0.0, TernState.REFRAIN.value: 0.05}.get(round(history_bias), 0.0)
 
-    # === The 1+1=3 Principle (Emergent Latent Field) ===
+    # === Dual-Key Synergistic Routing ===
+    synergy_score = 0.0
+    
     # High latency + high active processes = emergent critical synergy
     if nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"] and sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
-        synergy_score += 0.5 # A significant penalty
+        synergy_score += 0.15 
     
     # Low memory + high process count = emergent critical synergy
     if hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"] and sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
-        synergy_score += 0.5
+        synergy_score += 0.15
     
     # === Safety and Governance (Hard Gate) ===
+    # Hard veto on extreme packet loss
+    if nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["refrain_max"]:
+        return TernState.REFRAIN
+        
     # The safety expert (critical services) has a hard veto.
     if sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["refrain_max"] or current_competence["safety_and_ethics"] < 0.5:
         return TernState.REFRAIN
@@ -306,6 +345,7 @@ def resolve_moe13_state(metrics: dict) -> TernState:
     
     # Add the synergistic score to the total
     score += synergy_score
+    score = clamp(score + bias_term, 0.0, 1.0)
     
     state = TernState.ALIGN if score > FALLBACK_RISK_THRESHOLD else TernState.CO_CREATE
 
@@ -341,7 +381,7 @@ def take_physical_action(state: TernState):
         print(f"ACTUATOR ERROR: Could not execute action. {e}")
 
 
-def execute_firewall_action(state: TernState, metrics: dict):
+def execute_firewall_action(state: TernState, metrics: dict, competence: dict):
     """
     Takes a proactive firewall action based on the ternary state and logs to the pillar.
     """
@@ -372,16 +412,20 @@ def execute_firewall_action(state: TernState, metrics: dict):
         "action": action_map[state],
         "message": message,
         "state_value": state.value,
-        "source": "firewall_v10.1.py",
+        "source": "firewall_v10.2.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
             "ui_signed": True
         },
-        "metrics_digest": _digest(metrics)
+        "metrics_digest": _digest(metrics),
+        "moe_competence": competence
     }
 
     take_physical_action(state)
+
+    # One-line status banner for human ops
+    print(f"[{utc_now_z()}] STATE={state.name} action={action_map[state]} digest={json.dumps(event_data['metrics_digest'])}")
 
     if state == TernState.CO_CREATE:
         print(f"SYSTEM OK: {message}")
@@ -394,13 +438,13 @@ def execute_firewall_action(state: TernState, metrics: dict):
         trigger_bug_report("critical", message)
         guarded_audit(event_data, state)
 
-def maybe_execute(state: TernState, metrics: dict):
+def maybe_execute(state: TernState, metrics: dict, competence: dict):
     """
     Executes firewall action only on state transition.
     """
     global _last_committed_state
     if state != _last_committed_state:
-        execute_firewall_action(state, metrics)
+        execute_firewall_action(state, metrics, competence)
         _last_committed_state = state
     else:
         # quiet audit heartbeat (rare) — keep rate-limited
@@ -408,7 +452,7 @@ def maybe_execute(state: TernState, metrics: dict):
             "name":"Ternary Firewall Heartbeat",
             "action":"STEADY",
             "state_value":state.value,
-            "source":"firewall_v10.1.py",
+            "source":"firewall_v10.2.py",
             "oiuidi_signatures":{
                 "oi_signed":True,
                 "di_signed":True,
@@ -419,25 +463,30 @@ def maybe_execute(state: TernState, metrics: dict):
         guarded_audit(heartbeat_data, state)
 
 def parse_args():
-    """Parses command-line arguments to enable dry-run mode."""
+    """Parses command-line arguments to enable dry-run mode and config path."""
     global DRY_RUN
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="Log actions without executing them.")
-    args, unknown = ap.parse_known_args() # Use parse_known_args to ignore other CLI args
+    ap.add_argument("--config", type=str, default="firewall.toml", help="Path to firewall.toml")
+    args, unknown = ap.parse_known_args()
     DRY_RUN = args.dry_run
+    return args
 
 # ====================
 # MAIN EXECUTION
 # ====================
 if __name__ == "__main__":
-    parse_args()
+    args = parse_args()
+    load_config(args.config)
     
     # Simulate a critical failure (State 9)
     print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
     metrics = get_realtime_metrics_from_system()
     metrics["hardware_information"]["memory_available_gib"] = 0.4
+    metrics["network_information"]["packet_loss_percent"] = 15.0 # Veto trigger
+    competence = get_competence_vector(metrics)
     state = resolve_moe13_state(metrics)
-    maybe_execute(state, metrics)
+    maybe_execute(state, metrics, competence)
 
     print("\n" + "="*50 + "\n")
 
@@ -446,16 +495,18 @@ if __name__ == "__main__":
     metrics = get_realtime_metrics_from_system()
     metrics["hardware_information"]["memory_available_gib"] = 1.4
     metrics["software_information"]["active_processes"] = 260
+    competence = get_competence_vector(metrics)
     state = resolve_moe13_state(metrics)
-    maybe_execute(state, metrics)
+    maybe_execute(state, metrics, competence)
 
     print("\n" + "="*50 + "\n")
     
     # Simulate a harmonious state (State 3)
     print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
     metrics = get_realtime_metrics_from_system()
+    competence = get_competence_vector(metrics)
     state = resolve_moe13_state(metrics)
-    maybe_execute(state, metrics)
+    maybe_execute(state, metrics, competence)
 
     print("\n" + "="*50 + "\n")
     
