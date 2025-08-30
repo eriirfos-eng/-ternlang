@@ -1,3 +1,6 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
+
+
 # Ternlang
 
 **Ternlang** is a proof-of-concept architectural framework that redefines the very essence of computational logic.  
