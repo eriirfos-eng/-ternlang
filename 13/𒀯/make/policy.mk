@@ -222,3 +222,8 @@ if bad:
 else:
     print(f"✅ all {ok} events valid")
 PY
+.PHONY: pillar-anchor
+
+pillar-anchor:
+	@python3 13/𒀯/pillar/pillar_hash.py
+ 
