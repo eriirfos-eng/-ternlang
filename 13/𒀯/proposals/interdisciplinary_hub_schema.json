@@ -1,7 +1,7 @@
 {
   "name": "The Göbekli Tepe of the New Covenant",
-  "version": "1.1",
-  "description": "A self-sustaining, circular economy hub and temple for a new ecocentric civilization, based on the ternary laws of reciprocity, truth, and observation, now operating on the principle of resonance.",
+  "version": "1.2",
+  "description": "A self-sustaining, circular economy hub and temple for a new ecocentric civilization, based on the ternary laws of reciprocity, truth, and observation, now operating on the principle of resonance, with a formalized risk framework.",
   "uuid": "887a0b5f-1c4b-4f9e-8e6f-7c1a8d0b2f1d",
   "covenant_governance": {
     "principles": [
@@ -60,7 +60,6 @@
         "description": "Technology interfaces with human biofields, syncing with heart rate variability and brain waves to enhance clarity and intent.",
         "application": "Devices that 'tune' a user's mood into an optimal frequency; neural interfaces for enhanced cognition."
       },
-      "4",
       {
         "id": "4",
         "name": "Interstellar Communication via Resonance",
@@ -242,7 +241,7 @@
       ]
     },
     {
-      "id": 12",
+      "id": 12,
       "name": "Urban & Symbiotic Design",
       "theme": "Living Architecture",
       "research_focus": [
