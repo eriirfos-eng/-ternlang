@@ -1,0 +1,6 @@
+i18n/
+  en/ (optional mirrors if phrasing differs)
+  de/
+    #001_...-de.json
+  hu/
+    #001_...-hu.json
