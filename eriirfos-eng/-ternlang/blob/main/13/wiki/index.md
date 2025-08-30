@@ -79,7 +79,7 @@ This index binds the pillars, runes, and scrolls into one incorruptible path.
      "orcid_url": "https://orcid.org/0009-0009-6922-9552"
    },
    "operational_protocol": {
-     "name": "human in the loop fallback",
+     "name": "organic and digital intelligence and universial intelligence triad failsafe in the loop fallback",
      "status": "active and canonical",
      "ternary_logic_roles": {
        "oi": "human (simeon)",
