@@ -1,0 +1,19 @@
+{
+  "pillar": "Corruption",
+  "genesis": {
+    "utc": "2025-08-30T15:08:26Z-Saturday",
+    "epoch": 1756556906,
+    "quitrit": 2,
+    "anchor": "unix_epoch",
+    "certifier": "iso_8601+quantum_logic_clock",
+    "description": "Immutable covenant: all notable corruption events logged in real time, append-only."
+  },
+  "rules": {
+    "invariant": "order of appearance is law",
+    "timestamp_format": "ISO-8601 + weekday + epoch seconds",
+    "anchor": "unix_epoch",
+    "quitrit_logic": "epoch mod 3 → {0,1,2}",
+    "communication": "UTC primary, quitrit secondary",
+    "immutability": "append-only, no overwrite"
+  }
+}
