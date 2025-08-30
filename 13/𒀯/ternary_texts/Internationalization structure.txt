@@ -1,0 +1,9 @@
+i18n/
+  en/ (optional mirrors if phrasing differs)
+  de/
+    #001_...-de.json
+  hu/
+    #001_...-hu.json
+Each locale file keeps the same keys, adds:
+
+"meta": { "locale": "de", "translator": "name_or_handle", "translator_note": "" }
