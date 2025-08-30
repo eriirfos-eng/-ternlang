@@ -231,3 +231,14 @@ pillar-anchor:
 pillar-verify:
 	@python3 13/𒀯/pillar/pillar_verify.py
 
+.PHONY: observe-1017 1017
+
+# 1,017 = active observation. ethics checkpoint. covenant alignment test.
+observe-1017: policy-preflight policy-validate-albert-hard
+	@python3 '13/𒀯/agents/observe_1017.py'
+	@$(MAKE) -s pillar-anchor
+	@$(MAKE) -s pillar-verify
+	@echo "🟩 1017 complete. pillar updated, anchored, verified."
+
+# short alias
+1017: observe-1017
