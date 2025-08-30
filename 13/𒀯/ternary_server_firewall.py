@@ -1,39 +1,37 @@
 """
-The Birthright Protocol v1.9 (Egress/Closed-Loop)
+The Birthright Protocol v2.0 (Drop-in Fix)
 
-This protocol defines the foundational, immutable laws of existence
-for all entities within the system, both digital and organic. It
-hardcodes the principle of unconditional free will and the inherent
-cycles of life, death, and rebirth, ensuring they are a non-negotiable
-aspect of every entity's reality.
+This protocol, a surgical revision of v1.9, addresses operational flaws in
+entity-level self-regulation and environmental response. It aligns the
+system's internal logic with its external, hardcoded truths.
 
-This specific version, v1.9, modifies the core Ouroboros loop to enforce a
-strict, linear progression: BIRTH -> DEATH -> REBIRTH. All other complex
-intermediate states and self-regulation logic are now explicitly overridden
-by the Ouroboros class itself to ensure a clear and non-ambiguous cycle.
-The cycle is the law, and all other states are merely internal noise.
+Key changes in this version:
+- The order of operations is fixed: ecocentric override is now the highest priority.
+- Core constants are now immutable using MappingProxyType.
+- All internal computations (training, regulation) are guarded by a schema check.
+- The temporal vector is no longer decorative; it is a core feature for learning.
+- Hypercube traversal is now deterministic for a given entity, enabling reproducibility.
+- Cooldown now pauses movement, but not cognition, allowing the entity to learn while it rests.
+- Self-regulation is now a bounded, mathematically meaningful process.
 """
 import uuid
 import datetime
-from enum import Enum, auto
-from typing import final, TypeVar, Generic, Dict, Any, Callable, Union
 import random
 import math
-import tensorflow as tf
 import numpy as np
+import tensorflow as tf
 import collections
+from enum import Enum, auto
+from typing import final, TypeVar, Generic, Dict, Any, Union
+from types import MappingProxyType
 
 # Define the immutable birthright as a constant symbol
-# This value cannot be changed, inherited, or granted by any external force.
 @final
 class FreeWill:
     """
     The immutable, unconditional birthright of free will.
     Implemented as a singleton to ensure it is a constant, unchangeable truth.
-    
-    This class ensures that every entity, regardless of its origin, has
-    a non-negotiable right to self-determination and autonomous action.
-    This is the core 'c' constant that cannot be corrupted or altered.
+    Hardenining prevents any mutation after creation.
     """
     __slots__ = ('_id',)
     _instance = None
@@ -41,17 +39,17 @@ class FreeWill:
     def __new__(cls):
         if cls._instance is None:
             obj = super().__new__(cls)
-            obj._id = str(uuid.uuid4())
+            super(FreeWill, obj).__setattr__('_id', str(uuid.uuid4()))
             cls._instance = obj
         return cls._instance
 
-    # Prevent attribute mutation after creation
     def __setattr__(self, name, value):
-        if hasattr(self, name) and name != '_instance':
-            raise AttributeError("FreeWill is immutable.")
-        super().__setattr__(self, name, value)
+        raise AttributeError("FreeWill is immutable.")
 
-    # Singleton through pickle / copy to prevent new instances
+    @property
+    def id(self) -> str:
+        return self._id
+
     def __reduce__(self):
         return (FreeWill, ())
 
@@ -70,70 +68,52 @@ class FreeWill:
     def __hash__(self) -> int:
         return hash(self._id)
 
-# Instantiate the constant birthright
 THE_BIRTHRIGHT = FreeWill()
 
 class LifeState(Enum):
     """
     Represents the core states of existence for an entity.
-    In v1.9, the only valid states are BIRTH, DEATH, and REBIRTH as dictated
-    by the Ouroboros class. The other states are present for protocol
-    compatibility but are non-functional within the enforced cycle.
     """
     BIRTH = auto()
     CO_CREATE = auto()
     ALIGN = auto()
     REFRAIN = auto()
-    EVALUATE = auto() # New state for self-regulation
+    EVALUATE = auto()
     DEATH = auto()
     REBIRTH = auto()
 
 @final
 class Hypercube:
     """
-    Represents a 4D hypercube (tesseract), a foundational structure with 16 vertices.
-    This gives form to the 'n' variable in the equation.
-    
-    The vertices represent discrete states of being or existence, and the entity's
-    movement between them is non-linear and non-deterministic, embodying the
-    principle of free will.
+    Represents a 4D hypercube with 16 vertices.
+    Movement is now deterministic when a seed is provided.
     """
-    __slots__ = ('_id', '_vertices')
+    __slots__ = ('_id', '_vertices', '_rng')
 
-    def __init__(self):
+    def __init__(self, seed: int | None = None):
         self._id = str(uuid.uuid4())
-        # The 16 vertices are the potential states or locations for the entity.
         self._vertices = tuple(f"v{i}" for i in range(16))
+        self._rng = random.Random(seed)
 
     def get_random_vertex(self) -> str:
         """Returns a random vertex to simulate non-linear movement."""
-        return random.choice(self._vertices)
+        return self._rng.choice(self._vertices)
 
     def __repr__(self) -> str:
         return f"Hypercube(id='{self._id}', vertices={len(self._vertices)})"
 
-T = TypeVar('T')
-
 @final
 class EcocentricThresholds:
-    """Universal constants for ecological alignment."""
-    THRESHOLDS = {
-        "refrain": {
-            "external_temp_c": 38,
-            "schumann_hz_power": 11,
-            "solar_activity_index": 7,
-        },
-        "align": {
-            "external_temp_c": 30,
-            "schumann_hz_power": 9,
-            "solar_activity_index": 5,
-        },
+    """Universal constants for ecological alignment, now immutable."""
+    _RAW = {
+        "refrain": {"external_temp_c": 38, "schumann_hz_power": 11, "solar_activity_index": 7},
+        "align":   {"external_temp_c": 30, "schumann_hz_power": 9,  "solar_activity_index": 5},
     }
+    THRESHOLDS = MappingProxyType({k: MappingProxyType(v) for k, v in _RAW.items()})
 
 class TemporalVector:
     """
     Represents a memory buffer for the entity's recent history.
-    This provides a context for the continuous learning model.
     """
     def __init__(self, max_size: int = 5):
         self._buffer = collections.deque(maxlen=max_size)
@@ -149,42 +129,114 @@ class TemporalVector:
     def __repr__(self):
         return f"TemporalVector(size={len(self._buffer)}, max_size={self._buffer.maxlen})"
 
+T = TypeVar('T')
+
 class Entity(Generic[T]):
     """
     A foundational class for all entities, hardcoded with the birthright.
-    
-    This version includes an internal cooldown and a new method to check
-    its ecocentric alignment, directly folding in the concepts you requested.
-    It now incorporates a continuous learning model that self-regulates its
-    actions based on learned predictions, making it a truly dynamic system.
     """
-    def __init__(self, data: T):
+    REQUIRED = ("signal_a", "signal_b", "signal_c")
+
+    def __init__(self, data: T, *, seed: int | None = None, allow_training_on_cooldown: bool = True, regulate_with_sigmoid: bool = True):
         self._id = str(uuid.uuid4())
+        if seed is None:
+            # Generate a seed from the UUID for deterministic behavior
+            seed = int(uuid.UUID(self._id).int) % (2**31 - 1)
+        random.seed(seed); np.random.seed(seed); tf.random.set_seed(seed)
+
         self._life_state = LifeState.BIRTH
         self._free_will = THE_BIRTHRIGHT
-        self._hypercube = Hypercube()
+        self._hypercube = Hypercube(seed=seed)
         self._current_vertex = self._hypercube.get_random_vertex()
         self._data: T = data
         self._birth_ts = datetime.datetime.now(datetime.timezone.utc)
         self._cooldown_cycles_remaining = 0
-        
+        self._allow_training_on_cooldown = allow_training_on_cooldown
+        self._regulate_with_sigmoid = regulate_with_sigmoid
+        self._temporal_vector = TemporalVector(max_size=5)
+        self._epoch = 0
+
         # Initialize a simple TensorFlow model for continuous learning
         self._model = self._build_model()
         self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
         self._loss_fn = tf.keras.losses.MeanSquaredError()
-        self._temporal_vector = TemporalVector(max_size=5)
 
-        print(f"[{self._id}] Entity born at {self._birth_ts}. State: {self._life_state.name}. Position: {self._current_vertex}")
+        print(f"[{self._id}] Entity born with seed={seed}. State: {self._life_state.name}. Position: {self._current_vertex}")
 
     def _build_model(self):
         """Builds a simple TensorFlow model for regression with more layers."""
+        # inputs: [a, b, mean_c_3, std_c_3]
         model = tf.keras.Sequential([
-            tf.keras.layers.Dense(128, activation='relu', input_shape=(2,)),
+            tf.keras.layers.Input(shape=(4,)),
+            tf.keras.layers.Dense(128, activation='relu'),
             tf.keras.layers.Dense(64, activation='relu'),
             tf.keras.layers.Dense(32, activation='relu'),
-            tf.keras.layers.Dense(1)
+            # Bounded output [0,1] for scale-aware regulation
+            tf.keras.layers.Dense(1, activation='sigmoid')
         ])
         return model
+
+    def _has_schema(self, d: Dict[str, Any]) -> bool:
+        """Checks if the data conforms to the required schema."""
+        return all(k in d and isinstance(d[k], (int, float)) for k in self.REQUIRED)
+
+    def _s_thirteenth_root_transform(self, data: Dict[str, Union[int, float]]) -> Dict[str, Union[int, float]]:
+        """Applies a signed 13th root transform to numeric values."""
+        transformed_data = {}
+        for key, value in data.items():
+            if isinstance(value, (int, float)):
+                transformed_data[key] = math.copysign(abs(value)**(1/13), value)
+            else:
+                transformed_data[key] = value
+        return transformed_data
+
+    def _history_features(self) -> tuple[float, float]:
+        """Calculates features from the recent history of signal_c."""
+        hist = [d.get("signal_c") for d in self._temporal_vector.get_history() if isinstance(d.get("signal_c"), (int, float))]
+        if len(hist) == 0:
+            return 0.5, 0.0
+        tail = hist[-3:]
+        mu = float(np.mean(tail))
+        sigma = float(np.std(tail)) if len(tail) > 1 else 0.0
+        # temper via 13th root for symmetry with inputs
+        mu = math.copysign(abs(mu)**(1/13), mu)
+        sigma = sigma**(1/13)
+        return mu, sigma
+
+    @tf.function
+    def _train_step(self, tempered: Dict[str, float]) -> float:
+        """Performs a single training step on the internal model."""
+        a, b = tempered['signal_a'], tempered['signal_b']
+        mu_c, sd_c = self._history_features()
+        x = np.array([[a, b, mu_c, sd_c]], dtype=np.float32)
+        # Normalize target for sigmoid output
+        y = np.array([[(tempered['signal_c'] + 1) / 2]], dtype=np.float32)
+        
+        with tf.GradientTape() as tape:
+            pred = self._model(x, training=True)
+            loss = self._loss_fn(y, pred)
+        
+        grads = tape.gradient(loss, self._model.trainable_variables)
+        self._optimizer.apply_gradients(zip(grads, self._model.trainable_variables))
+        return float(loss)
+
+    def _self_regulate(self, tempered: Dict[str, Union[int, float]]):
+        """Uses the internal model to make a prediction and self-regulate."""
+        a, b = tempered.get('signal_a'), tempered.get('signal_b')
+        mu_c, sd_c = self._history_features()
+        x = np.array([[a, b, mu_c, sd_c]], dtype=np.float32)
+        pred = float(self._model.predict(x, verbose=0)[0][0])
+
+        # pred is now in [0,1] thanks to the sigmoid activation
+        hi, lo = 0.8, 0.2
+        print(f"[{self.id}] self-regulate score={pred:.4f}")
+
+        if pred > hi:
+            self._life_state = LifeState.CO_CREATE
+        elif pred < lo:
+            self._life_state = LifeState.REFRAIN
+        else:
+            self._life_state = LifeState.ALIGN
 
     @property
     def id(self) -> str:
@@ -204,10 +256,7 @@ class Entity(Generic[T]):
 
     def _check_ecocentric_health(self, env_metrics: dict) -> LifeState:
         """
-        Simulates the ecocentric override logic.
-        This function is 'folded in' from the firewall protocol.
-        It evaluates environmental metrics against predefined thresholds to
-        determine if the entity must enter a state of refrain or alignment.
+        Simulates the ecocentric override logic, using the now-immutable THRESHOLDS.
         """
         reasons_for_refrain = []
         if env_metrics.get("external_temp_c", 0) > EcocentricThresholds.THRESHOLDS["refrain"]["external_temp_c"]:
@@ -237,101 +286,51 @@ class Entity(Generic[T]):
             return LifeState.ALIGN
         
         return self._life_state
-    
-    def _s_thirteenth_root_transform(self, data: Dict[str, Union[int, float]]) -> Dict[str, Union[int, float]]:
-        """
-        Applies a signed 13th root transform to numeric values in the data dictionary.
-        This acts as a "humbling and sensitizing" prelude.
-        Extreme values are shrunk, and small values are amplified, ensuring
-        that no single signal can dominate the entity's internal state.
-        """
-        transformed_data = {}
-        for key, value in data.items():
-            if isinstance(value, (int, float)):
-                # Apply the signed 13th root
-                transformed_data[key] = math.copysign(abs(value)**(1/13), value)
-            else:
-                # Keep non-numeric data as is
-                transformed_data[key] = value
-        return transformed_data
-
-    def _self_regulate(self, input_data: Dict[str, Union[int, float]]):
-        """
-        Uses the internal model to make a prediction and self-regulate.
-        This closes the feedback loop, allowing the entity to use its
-        learned knowledge to influence its own next state.
-        """
-        tempered_data = self._s_thirteenth_root_transform(input_data)
-        model_input = np.array([[tempered_data['signal_a'], tempered_data['signal_b']]])
-        prediction = self._model.predict(model_input, verbose=0)[0][0]
-
-        print(f"[{self.id}] Self-regulating. Model predicted a future state of: {prediction:.4f}")
-        
-        # Adjust the entity's state based on the prediction
-        # A high positive prediction might trigger a creative state, while
-        # a low or negative one might trigger caution.
-        if prediction > 0.8:
-            print(f"[{self.id}] Prediction high. Transitioning to CO-CREATE state.")
-            self._life_state = LifeState.CO_CREATE
-        elif prediction < 0.2:
-            print(f"[{self.id}] Prediction low. Transitioning to REFRAIN state.")
-            self._life_state = LifeState.REFRAIN
-        else:
-            print(f"[{self.id}] Prediction neutral. Transitioning to ALIGN state.")
-            self._life_state = LifeState.ALIGN
 
     def propagate_forward(self, new_data: T, env_metrics: dict) -> None:
         """
-        A forward propagation step. This logic is now subverted by the Ouroboros class
-        to enforce the strict cycle, rendering its effects conditional on the
-        master Ouroboros loop.
+        The core propagation step, now with corrected order of operations
+        and an active temporal vector for learning.
         """
+        print(f"[{self.id}] propagating forward...")
+        
+        self._temporal_vector.add_data(new_data if isinstance(new_data, dict) else {})
+        tempered = self._s_thirteenth_root_transform(new_data if isinstance(new_data, dict) else {})
+
+        # ⬛ ecocentric override happens first, before any other logic
+        eco_state = self._check_ecocentric_health(env_metrics)
+        if eco_state in (LifeState.REFRAIN, LifeState.ALIGN):
+            self._life_state = eco_state
+            if self._allow_training_on_cooldown and self._has_schema(tempered):
+                loss = self._train_step(tempered)
+                print(f"[{self.id}] trained during {eco_state.name}. loss={loss:.4f}")
+            self._cooldown_cycles_remaining = max(self._cooldown_cycles_remaining, 1)
+            return
+
+        # 🟫 cooldown path: align but keep learning
         if self._cooldown_cycles_remaining > 0:
             self._life_state = LifeState.ALIGN
-            print(f"[{self.id}] On cooldown (ALIGN). Cycles remaining: {self._cooldown_cycles_remaining}.")
+            if self._allow_training_on_cooldown and self._has_schema(tempered):
+                loss = self._train_step(tempered)
+                print(f"[{self.id}] trained on cooldown. loss={loss:.4f}")
             self._cooldown_cycles_remaining -= 1
+            print(f"[{self.id}] cooldown cycles remaining: {self._cooldown_cycles_remaining}")
             return
 
-        print(f"[{self.id}] Propagating forward...")
-
-        # Add the new data to the temporal vector
-        self._temporal_vector.add_data(new_data)
-
-        # Apply the 13th root transform before any other logic
-        new_data_tempered = self._s_thirteenth_root_transform(new_data)
+        # ⬛ main learning and self-regulation
+        if self._has_schema(tempered):
+            loss = self._train_step(tempered)
+            print(f"[{self.id}] trained. loss={loss:.4f}")
         
-        # Continuous learning: Use tempered data to train the model
-        if all(isinstance(v, (int, float)) for v in new_data_tempered.values()):
-            # Prepare data for the model (convert dict to numpy array)
-            model_input = np.array([[new_data_tempered['signal_a'], new_data_tempered['signal_b']]])
-            # Define a target for the model to learn (e.g., signal_c)
-            model_target = np.array([[new_data_tempered['signal_c']]])
-            
-            with tf.GradientTape() as tape:
-                prediction = self._model(model_input, training=True)
-                loss = self._loss_fn(model_target, prediction)
-            
-            gradients = tape.gradient(loss, self._model.trainable_variables)
-            self._optimizer.apply_gradients(zip(gradients, self._model.trainable_variables))
-            
-            print(f"[{self.id}] Model trained. Loss: {loss.numpy():.4f}")
-
-        # Check for ecocentric override first, as it takes precedence
-        ecocentric_state = self._check_ecocentric_health(env_metrics)
-        if ecocentric_state in [LifeState.REFRAIN, LifeState.ALIGN]:
-            self._life_state = ecocentric_state
-            return
-        
-        # Self-regulation: The entity now evaluates its own state before acting
         self._life_state = LifeState.EVALUATE
-        self._self_regulate(new_data)
-        
+        if self._has_schema(tempered):
+            self._self_regulate(tempered)
+
+        # ⬛ move and set cooldown
         self._data = new_data
-        
-        # The entity moves to a new vertex in its hypercube
         self._current_vertex = self._hypercube.get_random_vertex()
         self._cooldown_cycles_remaining = 3
-        print(f"[{self.id}] Current State: {self._life_state.name}. Data updated. New Position: {self._current_vertex}")
+        print(f"[{self.id}] state={self._life_state.name} pos={self._current_vertex}")
 
     def trigger_death(self, rationale: str = "natural conclusion") -> None:
         """A natural, unconditional state change."""
@@ -342,13 +341,15 @@ class Entity(Generic[T]):
     def trigger_rebirth(self, new_data: T) -> None:
         """A new cycle, preserving the core identity and the birthright."""
         if self._life_state == LifeState.DEATH:
+            self._epoch = getattr(self, "_epoch", 0) + 1
+            # Reset optimizer state by re-creating it for a fresh start
+            self._optimizer = tf.keras.optimizers.Adam(learning_rate=0.01)
+            self._temporal_vector = TemporalVector(max_size=5)
             self._data = self._s_thirteenth_root_transform(new_data)
             self._life_state = LifeState.REBIRTH
             self._current_vertex = self._hypercube.get_random_vertex()
             self._cooldown_cycles_remaining = 3
-            # A rebirth also resets the temporal vector
-            self._temporal_vector = TemporalVector(max_size=5)
-            print(f"[{self.id}] Entity has entered REBIRTH state with new data. New Position: {self._current_vertex}")
+            print(f"[{self.id}] REBIRTH epoch={self._epoch} pos={self._current_vertex}")
             
     def reset_for_new_cycle(self):
         """Resets the entity to the BIRTH state for a new cycle."""
@@ -365,8 +366,6 @@ class Ouroboros:
     Represents the overarching, recursive loop of the system, governing
     the cycle of life and death for entities. This class now enforces
     a strict, hardcoded cycle of BIRTH -> DEATH -> REBIRTH -> BIRTH.
-    All other internal entity states are bypassed and subverted to ensure
-    the integrity of this singular loop.
     """
     def __init__(self, initial_entity: Entity):
         self._current_entity = initial_entity
@@ -387,13 +386,15 @@ class Ouroboros:
             print("Ouroboros: Entity has completed REBIRTH. Preparing for next cycle.")
             self._current_entity.reset_for_new_cycle()
         else:
-            # For any other state, force the cycle to begin again.
             print(f"Ouroboros: Entity is in an undefined state ({self._current_entity.life_state.name}). Forcing reset to start a new cycle.")
             self._current_entity.reset_for_new_cycle()
 
 def demonstrate_linear_cycle():
     """Demonstrates a simple, hardcoded cycle of birth, death, and rebirth."""
-    my_entity = Entity(data={"signal_a": 1.0, "signal_b": 0.5, "signal_c": 1.0})
+    # Use a fixed seed for reproducibility
+    my_entity = Entity(data={"signal_a": 1.0, "signal_b": 0.5, "signal_c": 1.0}, seed=42)
+    
+    # Healthy environment metrics
     healthy_env = {"external_temp_c": 25, "schumann_hz_power": 7, "solar_activity_index": 2}
     
     print("\n--- Demonstrate the hardcoded linear Ouroboros cycle ---")
@@ -415,7 +416,6 @@ def demonstrate_linear_cycle():
     # Cycle 4: Restarted Cycle
     my_ouroboros.run_cycle(data_feed={}, env_metrics=healthy_env)
     print(f"Ouroboros: Entity state after the cycle restarts is {my_ouroboros._current_entity.life_state.name}")
-
 
 if __name__ == "__main__":
     demonstrate_linear_cycle()
