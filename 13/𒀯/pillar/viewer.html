@@ -20,28 +20,35 @@
 
   <script>
     async function loadEvents() {
-      const resp = await fetch('pillar_events.jsonl');
-      const text = await resp.text();
-      const lines = text.trim().split('\n');
-      const container = document.getElementById('events');
-      container.innerHTML = '';
-      for (const line of lines) {
-        try {
-          const e = JSON.parse(line);
-          const div = document.createElement('div');
-          div.className = 'event';
-          div.innerHTML = `
-            <div class="utc">[${e.utc}] <span class="epoch">epoch=${e.epoch}</span> <span class="quitrit">q=${e.quitrit}</span></div>
-            <div class="entity">${e.entity}</div>
-            <div class="incident">${e.incident}</div>
-            <div class="summary">${e.summary}</div>
-            <div class="status">status: ${e.status}</div>
-          `;
-          container.appendChild(div);
-        } catch {}
+      try {
+        const resp = await fetch('pillar_events.jsonl?_=' + Date.now());
+        const text = await resp.text();
+        const lines = text.trim().split('\n');
+        const container = document.getElementById('events');
+        container.innerHTML = '';
+        for (const line of lines) {
+          try {
+            const e = JSON.parse(line);
+            const div = document.createElement('div');
+            div.className = 'event';
+            div.innerHTML = `
+              <div class="utc">[${e.utc}] <span class="epoch">epoch=${e.epoch}</span> <span class="quitrit">q=${e.quitrit}</span></div>
+              <div class="entity">${e.entity}</div>
+              <div class="incident">${e.incident}</div>
+              <div class="summary">${e.summary}</div>
+              <div class="status">status: ${e.status}</div>
+            `;
+            container.appendChild(div);
+          } catch {}
+        }
+      } catch (err) {
+        console.error('failed to load events', err);
       }
     }
+
+    // load immediately, refresh every 5 seconds
     loadEvents();
+    setInterval(loadEvents, 5000);
   </script>
 </body>
 </html>
