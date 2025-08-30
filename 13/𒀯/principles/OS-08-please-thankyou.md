@@ -1,3 +1,6 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
+
+
 # Principle OS-08 — The Please and Thank You Principle  
 
 ## statement  
