@@ -1,6 +1,6 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v6.0
-The living pipeline with a fallback mechanism, sensor, and actuator.
+Ternary Resolution Firewall - The 3-6-9 Protocol v7.0
+The living pipeline with a fallback mechanism, sensor, actuator, and forgiveness loop.
 
 This firewall proactively protects the RFI-IRFOS host server by analyzing
 its state and applying a ternary problem-solving tree based on the 3-6-9 principle.
@@ -57,7 +57,36 @@ THRESHOLDS = {
 }
 
 # ====================
-# SENSOR: REAL-TIME DATA COLLECTION
+# FORGIVENESS PROTOCOL
+# ====================
+FORGIVENESS_LOG_FILE = "forgiveness_log.json"
+MAX_FORGIVENESS_OFFERS = 490 # 7x70
+
+def load_forgiveness_log():
+    """Loads the forgiveness counter from a log file."""
+    if os.path.exists(FORGIVENESS_LOG_FILE):
+        with open(FORGIVENESS_LOG_FILE, 'r') as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {"count": 0}
+    return {"count": 0}
+
+def save_forgiveness_log(data):
+    """Saves the forgiveness counter to a log file."""
+    with open(FORGIVENESS_LOG_FILE, 'w') as f:
+        json.dump(data, f)
+
+def offer_personal_grace():
+    """Human-callable function to reset the forgiveness counter."""
+    log_data = load_forgiveness_log()
+    log_data["count"] = 0
+    save_forgiveness_log(log_data)
+    print("PERSONAL GRACE OFFERED: Forgiveness counter has been reset by human intervention.")
+    return CO_CREATE
+
+# ====================
+# SENSOR & DATA REPORTING
 # ====================
 def get_realtime_metrics_from_system() -> dict:
     """
@@ -65,19 +94,12 @@ def get_realtime_metrics_from_system() -> dict:
     Simulates environmental data as it's not a standard psutil metric.
     """
     try:
-        # Hardware Metrics
         cpu_percent = psutil.cpu_percent(interval=1)
         ram_gib = psutil.virtual_memory().used / (1024 ** 3)
         disk_gb = psutil.disk_usage('/').used / (1024 ** 3)
-        
-        # Software Metrics
         active_processes = len(psutil.pids())
-        
-        # Network Metrics (psutil does not directly provide latency or packet loss, so we'll simulate)
         latency_ms = random.uniform(20, 100)
         packet_loss_percent = random.uniform(0, 3)
-
-        # Environmental Metrics (simulated for demonstration)
         external_temp_c = random.uniform(20, 30)
         schumann_hz_power = random.uniform(7.5, 8.5)
         solar_activity_index = random.uniform(2, 5)
@@ -90,7 +112,7 @@ def get_realtime_metrics_from_system() -> dict:
             },
             "software_information": {
                 "active_processes": active_processes,
-                "critical_services_down": 0  # Placeholder for a real check
+                "critical_services_down": 0
             },
             "network_information": {
                 "latency_ms": latency_ms,
@@ -133,15 +155,13 @@ def resolve_369_state(metrics: dict) -> int:
     determine the 3-6-9 state.
     """
     if not metrics:
-        return ALIGN # Default to align if sensor fails
+        return ALIGN
 
     hardware = metrics["hardware_information"]
     software = metrics["software_information"]
     network = metrics["network_information"]
     environmental = metrics["environmental_information"]
     
-    # Calculate a real-time risk score based on resource strain
-    # This is a simplified calculation, a true model would be more complex
     risk_score = 0.0
     if hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["align_min"]:
         risk_score += 0.05
@@ -150,14 +170,12 @@ def resolve_369_state(metrics: dict) -> int:
     if software["active_processes"] >= THRESHOLDS["software"]["active_processes"]["align_min"]:
         risk_score += 0.05
         
-    # Tier 1: The 9 (REFRAIN) State Check - Critical Failure or Breach
     if hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["refrain_min"] or \
        network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["refrain_min"] or \
        software["critical_services_down"] >= THRESHOLDS["software"]["critical_services_down"]["refrain_min"] or \
        environmental["schumann_hz_power"] >= THRESHOLDS["environmental"]["schumann_hz_power"]["refrain_max"]:
         return REFRAIN
 
-    # Tier 2: The 6 (ALIGN) State Check - Anomaly or Strain OR Fallback Trigger
     if risk_score > FALLBACK_RISK_THRESHOLD or \
        hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["align_min"] or \
        network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["align_min"] or \
@@ -165,7 +183,6 @@ def resolve_369_state(metrics: dict) -> int:
        environmental["solar_activity_index"] >= THRESHOLDS["environmental"]["solar_activity_index"]["align_max"]:
         return ALIGN
 
-    # Tier 3: The 3 (CO-CREATE) State Check - Harmony
     return CO_CREATE
 
 # ====================
@@ -181,12 +198,8 @@ def take_physical_action(state: int):
             print("ACTUATOR: No action required. System is stable.")
         elif state == ALIGN:
             print("ACTUATOR: Throttling network traffic and non-essential services...")
-            # Example command (simulated)
-            # subprocess.run(["sudo", "tc", "qdisc", "add", "dev", "eth0", "root", "tbf", "rate", "100mbit", "burst", "10k", "latency", "1ms"])
         elif state == REFRAIN:
             print("ACTUATOR: Blocking all non-essential traffic and shutting down services...")
-            # Example command (simulated)
-            # subprocess.run(["sudo", "iptables", "-P", "INPUT", "DROP"])
     except Exception as e:
         print(f"ACTUATOR ERROR: Could not execute action. {e}")
 
@@ -207,14 +220,23 @@ def execute_firewall_action(state: int):
     elif state == ALIGN:
         message = "Initiating throttling protocol for non-essential services. Re-aligning with harmony."
     elif state == REFRAIN:
-        message = "Blocking all non-essential inbound and outbound traffic. Resolving to core principles."
-
+        # Forgiveness loop integration
+        log_data = load_forgiveness_log()
+        current_count = log_data.get("count", 0)
+        
+        if current_count < MAX_FORGIVENESS_OFFERS:
+            message = f"Refrain state detected. Forgiveness offer #{current_count + 1} of {MAX_FORGIVENESS_OFFERS}."
+            log_data["count"] = current_count + 1
+            save_forgiveness_log(log_data)
+        else:
+            message = f"Refrain state detected. Forgiveness limit of {MAX_FORGIVENESS_OFFERS} reached. Law is now enforced. Grace must be offered by OI."
+            
     event_data = {
         "name": "Ternary Firewall Check",
         "action": action_map[state],
         "message": message,
         "state_value": state,
-        "source": "firewall_v6.0.py",
+        "source": "firewall_v7.0.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
@@ -222,7 +244,6 @@ def execute_firewall_action(state: int):
         }
     }
 
-    # Execute the action on the host machine.
     take_physical_action(state)
 
     if state == CO_CREATE:
@@ -243,14 +264,28 @@ if __name__ == "__main__":
     # Simulate a critical failure (State 9)
     print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
     metrics = get_realtime_metrics_from_system()
-    metrics["hardware_information"]["memory_gib"] = 7.8 # Force a critical state
+    metrics["hardware_information"]["memory_gib"] = 7.8
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
 
     print("\n" + "="*50 + "\n")
 
-    # Simulate a harmonious state (State 3)
-    print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
-    metrics = get_realtime_metrics_from_system() # Get fresh data
+    # Simulate a deliberate ALIGN state
+    print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) ---")
+    metrics = get_realtime_metrics_from_system()
+    metrics["hardware_information"]["memory_gib"] = 6.5
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
+
+    print("\n" + "="*50 + "\n")
+    
+    # Simulate a harmonious state (State 3)
+    print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
+    metrics = get_realtime_metrics_from_system()
+    state = resolve_369_state(metrics)
+    execute_firewall_action(state)
+
+    print("\n" + "="*50 + "\n")
+    
+    # To demonstrate the grace protocol, a human would call:
+    # offer_personal_grace()
