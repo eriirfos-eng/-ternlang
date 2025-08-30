@@ -1,5 +1,5 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v10.2
+Ternary Resolution Firewall - The 3-6-9 Protocol v10.3
 The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
 and a self-correcting logic engine.
 
@@ -17,12 +17,23 @@ import os
 import datetime
 import json
 import random
-import psutil
-import argparse
+import time
 from enum import IntEnum
 from pathlib import Path
 from collections import deque
-import tomllib
+import argparse
+
+# --- TOML compatibility guard for Python < 3.11 ---
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib
+
+# --- psutil compatibility guard for minimal hosts ---
+try:
+    import psutil
+except Exception:
+    psutil = None
 
 # ====================
 # TERNARY STATES
@@ -72,12 +83,35 @@ THRESHOLDS = {
 # Hysteresis buffer to prevent state flapping.
 LAST_STATES = deque(maxlen=5)
 
+def _require(d, path):
+    """Recursively validates the presence of a key path in a dictionary."""
+    cur = d
+    for k in path.split("."):
+        if k not in cur:
+            raise KeyError(f"missing config: {path}")
+        cur = cur[k]
+    return cur
+
 def load_config(path="firewall.toml"):
-    """Loads configuration from a TOML file."""
+    """Loads and validates configuration from a TOML file."""
     try:
         with open(path,"rb") as f:
             cfg = tomllib.load(f)
         
+        # sanity checks
+        _require(cfg, "risk.fallback_threshold")
+        _require(cfg, "risk.audit_min_interval_s")
+        for dom, keys in {
+            "hardware": ["memory_available_gib","processor_cores_total","disk_free_gb"],
+            "software": ["active_processes","critical_services_down"],
+            "network":  ["latency_ms","packet_loss_percent"],
+            "environmental": ["external_temp_c","schumann_hz_power","solar_activity_index"],
+        }.items():
+            if dom not in cfg: continue
+            for k in keys:
+                if k not in cfg[dom]:
+                    raise KeyError(f"missing config: {dom}.{k}")
+
         # Update global constants
         global FALLBACK_RISK_THRESHOLD, AUDIT_MIN_INTERVAL_S, THRESHOLDS
         FALLBACK_RISK_THRESHOLD = cfg["risk"]["fallback_threshold"]
@@ -86,8 +120,7 @@ def load_config(path="firewall.toml"):
         # Rebuild THRESHOLDS from config
         T = {}
         for domain in ("hardware","software","network","environmental"):
-            domain_cfg = cfg.get(domain, {})
-            T[domain] = {k: v for k, v in domain_cfg.items()}
+            T[domain] = cfg.get(domain, THRESHOLDS.get(domain, {}))
         THRESHOLDS = T
         print("CONFIG: Successfully loaded thresholds from firewall.toml")
     except Exception as e:
@@ -148,11 +181,24 @@ class Samplers:
     def schumann_hz_power(self): return random.uniform(7.5, 8.5)
     def solar_activity_index(self): return random.uniform(2, 5)
 
+class FixedSamplers(Samplers):
+    """A fixed sampler for deterministic demos."""
+    def __init__(self, lat=50, loss=0.0, temp=25, sch=8.0, solar=3.0):
+        self._lat, self._loss, self._temp, self._sch, self._solar = lat, loss, temp, sch, solar
+    def latency_ms(self): return self._lat
+    def packet_loss_percent(self): return self._loss
+    def external_temp_c(self): return self._temp
+    def schumann_hz_power(self): return self._sch
+    def solar_activity_index(self): return self._solar
+
 def get_realtime_metrics_from_system(samplers: Samplers = Samplers()) -> dict:
     """
-    Collects real-time hardware, software, and network metrics using psutil.
+    Collects real-time hardware, software, and network metrics.
     Simulates environmental data via the Samplers class.
     """
+    if psutil is None:
+        raise RuntimeError("psutil not available")
+    
     try:
         # Hardware Metrics
         ram_available_gib = psutil.virtual_memory().available / (1024 ** 3)
@@ -235,9 +281,9 @@ def trigger_mandatory_audit(event_data: dict):
     print("\nAudit complete. All three intelligences are now observing.")
 
 def guarded_audit(event_data: dict, state: TernState):
-    """Rate-limits the audit to prevent spamming."""
+    """Rate-limits the audit to prevent spamming using monotonic time."""
     global _last_audit_ts
-    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    now = time.monotonic()
     if now - _last_audit_ts < AUDIT_MIN_INTERVAL_S and state != TernState.REFRAIN:
         return
     _last_audit_ts = now
@@ -282,6 +328,16 @@ def get_competence_vector(metrics: dict) -> dict:
         "safety_and_ethics":  clamp(1.0 - crit_norm),
     }
 
+def _consensus_state():
+    """
+    Determines the consensus state from the hysteresis buffer, with a neutral
+    tie-breaker preferring ALIGN, then CO_CREATE, then REFRAIN.
+    """
+    counts = {s: LAST_STATES.count(s) for s in (TernState.CO_CREATE, TernState.ALIGN, TernState.REFRAIN)}
+    # prefer ALIGN on ties, then CO_CREATE, then REFRAIN
+    order = [TernState.ALIGN, TernState.CO_CREATE, TernState.REFRAIN]
+    best = max(order, key=lambda s: (counts[s], -order.index(s)))
+    return best
 
 def resolve_moe13_state(metrics: dict) -> TernState:
     """
@@ -323,37 +379,36 @@ def resolve_moe13_state(metrics: dict) -> TernState:
         return TernState.REFRAIN
         
     # === Accumulated Pressure ===
-    score = 0.0
-    weights = {
+    WEIGHTS = {
         "mem_available": 0.25, "disk_free": 0.15, "procs": 0.15,
         "latency": 0.20, "loss": 0.10, "solar": 0.10, "schumann": 0.05,
         "critical_services": 0.15
     }
+    W_SUM = sum(WEIGHTS.values())
 
+    score_raw = 0.0
     # Explicit integer casts for clarity
-    score += weights["mem_available"] * int(hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
-    score += weights["disk_free"] * int(hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
-    score += weights["procs"] * int(sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"])
-    score += weights["latency"] * int(nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
-    score += weights["loss"] * int(nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
-    score += weights["solar"] * int(env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
-    score += weights["schumann"] * int(env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["align_max"])
+    score_raw += WEIGHTS["mem_available"] * int(hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
+    score_raw += WEIGHTS["disk_free"] * int(hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
+    score_raw += WEIGHTS["procs"] * int(sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"])
+    score_raw += WEIGHTS["latency"] * int(nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
+    score_raw += WEIGHTS["loss"] * int(nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
+    score_raw += WEIGHTS["solar"] * int(env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
+    score_raw += WEIGHTS["schumann"] * int(env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["align_max"])
     
     # Add pressure for any critical service down
     crit_align = sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["align_max"]
-    score += weights["critical_services"] * int(crit_align)
+    score_raw += WEIGHTS["critical_services"] * int(crit_align)
     
-    # Add the synergistic score to the total
-    score += synergy_score
-    score = clamp(score + bias_term, 0.0, 1.0)
+    # Add the synergistic score and bias to the total and normalize
+    score = clamp((score_raw + synergy_score + bias_term) / max(1e-9, W_SUM), 0.0, 1.0)
     
     state = TernState.ALIGN if score > FALLBACK_RISK_THRESHOLD else TernState.CO_CREATE
 
     # Hysteresis: bias toward previous consensus to reduce flapping
     LAST_STATES.append(state)
     if len(LAST_STATES) == LAST_STATES.maxlen:
-        consensus = max((LAST_STATES.count(s), s) for s in (TernState.CO_CREATE, TernState.ALIGN, TernState.REFRAIN))[1]
-        return consensus
+        return _consensus_state()
     return state
 
 # ====================
@@ -412,7 +467,7 @@ def execute_firewall_action(state: TernState, metrics: dict, competence: dict):
         "action": action_map[state],
         "message": message,
         "state_value": state.value,
-        "source": "firewall_v10.2.py",
+        "source": "firewall_v10.3.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
@@ -452,7 +507,7 @@ def maybe_execute(state: TernState, metrics: dict, competence: dict):
             "name":"Ternary Firewall Heartbeat",
             "action":"STEADY",
             "state_value":state.value,
-            "source":"firewall_v10.2.py",
+            "source":"firewall_v10.3.py",
             "oiuidi_signatures":{
                 "oi_signed":True,
                 "di_signed":True,
@@ -481,9 +536,9 @@ if __name__ == "__main__":
     
     # Simulate a critical failure (State 9)
     print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
-    metrics = get_realtime_metrics_from_system()
+    fixed = FixedSamplers(lat=250, loss=15.0) # Veto trigger
+    metrics = get_realtime_metrics_from_system(fixed)
     metrics["hardware_information"]["memory_available_gib"] = 0.4
-    metrics["network_information"]["packet_loss_percent"] = 15.0 # Veto trigger
     competence = get_competence_vector(metrics)
     state = resolve_moe13_state(metrics)
     maybe_execute(state, metrics, competence)
@@ -492,7 +547,8 @@ if __name__ == "__main__":
 
     # Simulate a deliberate ALIGN state with emergent pressure
     print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) WITH SYNERGISTIC PRESSURE ---")
-    metrics = get_realtime_metrics_from_system()
+    fixed = FixedSamplers(lat=201)
+    metrics = get_realtime_metrics_from_system(fixed)
     metrics["hardware_information"]["memory_available_gib"] = 1.4
     metrics["software_information"]["active_processes"] = 260
     competence = get_competence_vector(metrics)
@@ -503,12 +559,8 @@ if __name__ == "__main__":
     
     # Simulate a harmonious state (State 3)
     print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
-    metrics = get_realtime_metrics_from_system()
+    fixed = FixedSamplers()
+    metrics = get_realtime_metrics_from_system(fixed)
     competence = get_competence_vector(metrics)
     state = resolve_moe13_state(metrics)
     maybe_execute(state, metrics, competence)
-
-    print("\n" + "="*50 + "\n")
-    
-    # To demonstrate the grace protocol, a human would call:
-    # offer_personal_grace()
