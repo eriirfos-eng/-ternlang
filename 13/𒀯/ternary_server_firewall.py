@@ -1,5 +1,5 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v9.0
+Ternary Resolution Firewall - The 3-6-9 Protocol v9.1
 The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
 and a self-correcting logic engine.
 
@@ -19,10 +19,10 @@ import datetime
 import json
 import random
 import psutil
+import argparse
 from enum import IntEnum
 from pathlib import Path
 from collections import deque
-import time
 
 # ====================
 # TERNARY STATES
@@ -33,6 +33,11 @@ class TernState(IntEnum):
     REFRAIN   = 9
 
 HARMONY = 432   # The ultimate endpoint for system resolution.
+
+# Global flag for dry-run mode
+DRY_RUN = False
+_last_audit_ts = 0.0
+AUDIT_MIN_INTERVAL_S = 5.0
 
 # ====================
 # FALLBACK MECHANISM & THRESHOLDS
@@ -45,7 +50,7 @@ FALLBACK_RISK_THRESHOLD = 0.10
 THRESHOLDS = {
     "hardware": {
         "memory_available_gib": {"refrain_min": 0.5, "align_min": 1.5},
-        "processor_cores_available": {"refrain_min": 1, "align_min": 2},
+        "processor_cores_total": {"refrain_min": 1, "align_min": 2},
         "disk_free_gb": {"refrain_min": 5, "align_min": 10}
     },
     "software": {
@@ -113,40 +118,47 @@ def utc_now_z():
     """Returns a correctly formatted ISO 8601 timestamp with Z for UTC."""
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-def get_realtime_metrics_from_system() -> dict:
+class Samplers:
+    """Dependency injection for sensor data, for deterministic testing."""
+    def latency_ms(self): return random.uniform(20, 100)
+    def packet_loss_percent(self): return random.uniform(0, 3)
+    def external_temp_c(self): return random.uniform(20, 30)
+    def schumann_hz_power(self): return random.uniform(7.5, 8.5)
+    def solar_activity_index(self): return random.uniform(2, 5)
+
+def get_realtime_metrics_from_system(samplers: Samplers = Samplers()) -> dict:
     """
     Collects real-time hardware, software, and network metrics using psutil.
-    Simulates environmental data as it's not a standard psutil metric.
+    Simulates environmental data via the Samplers class.
     """
     try:
         # Hardware Metrics
-        # NOTE: Using 'available' memory and 'free' disk space as per best practice.
         ram_available_gib = psutil.virtual_memory().available / (1024 ** 3)
         disk_free_gb = psutil.disk_usage('/').free / (1024 ** 3)
-        processor_cores = psutil.cpu_count(logical=True)
+        processor_cores_total = psutil.cpu_count(logical=True)
         
         # Software Metrics
         active_processes = len(psutil.pids())
+        critical_services_down = 0 # Placeholder for a real check
         
         # Network Metrics
-        # NOTE: In a production environment, these should be from real probes.
-        latency_ms = random.uniform(20, 100)
-        packet_loss_percent = random.uniform(0, 3)
+        latency_ms = samplers.latency_ms()
+        packet_loss_percent = samplers.packet_loss_percent()
 
         # Environmental Metrics (simulated for demonstration)
-        external_temp_c = random.uniform(20, 30)
-        schumann_hz_power = random.uniform(7.5, 8.5)
-        solar_activity_index = random.uniform(2, 5)
+        external_temp_c = samplers.external_temp_c()
+        schumann_hz_power = samplers.schumann_hz_power()
+        solar_activity_index = samplers.solar_activity_index()
 
         return {
             "hardware_information": {
                 "memory_available_gib": ram_available_gib,
-                "processor_cores_available": processor_cores,
+                "processor_cores_total": processor_cores_total,
                 "disk_free_gb": disk_free_gb
             },
             "software_information": {
                 "active_processes": active_processes,
-                "critical_services_down": 0
+                "critical_services_down": critical_services_down
             },
             "network_information": {
                 "latency_ms": latency_ms,
@@ -180,6 +192,15 @@ def trigger_mandatory_audit(event_data: dict):
     print(json.dumps(event_data, indent=2))
     print("\nAudit complete. All three intelligences are now observing.")
 
+def guarded_audit(event_data: dict, state: TernState):
+    """Rate-limits the audit to prevent spamming."""
+    global _last_audit_ts
+    now = datetime.datetime.now(datetime.timezone.utc).timestamp()
+    if now - _last_audit_ts < AUDIT_MIN_INTERVAL_S and state != TernState.REFRAIN:
+        return
+    _last_audit_ts = now
+    trigger_mandatory_audit(event_data)
+
 # ====================
 # TERNARY RESOLUTION TREE WITH FALLBACK
 # ====================
@@ -207,20 +228,25 @@ def resolve_369_state(metrics: dict) -> TernState:
         # Accumulate align pressure with a weighted score
         score = 0.0
         weights = {
-            "mem_used": 0.25, "disk_free": 0.15, "procs": 0.15,
-            "latency": 0.20, "loss": 0.10, "solar": 0.10, "schumann": 0.05
+            "mem_available": 0.25, "disk_free": 0.15, "procs": 0.15,
+            "latency": 0.20, "loss": 0.10, "solar": 0.10, "schumann": 0.05,
+            "critical_services": 0.15
         }
 
-        # Inverted logic for 'min' thresholds
-        score += weights["mem_used"] * (hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
+        # Inverted logic for 'min' thresholds (lower is worse)
+        score += weights["mem_available"] * (hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
         score += weights["disk_free"] * (hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
         score += weights["procs"] * (sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"])
         
-        # Regular logic for 'max' thresholds
+        # Regular logic for 'max' thresholds (higher is worse)
         score += weights["latency"] * (nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
         score += weights["loss"] * (nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
         score += weights["solar"] * (env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
         score += weights["schumann"] * (env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["align_max"])
+
+        # Add pressure for any critical service down
+        crit_align = sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["align_max"]
+        score += weights["critical_services"] * crit_align
 
         state = TernState.ALIGN if score > FALLBACK_RISK_THRESHOLD else TernState.CO_CREATE
 
@@ -239,8 +265,12 @@ def take_physical_action(state: TernState):
     Executes a physical or logical action on the host machine based on the
     ternary state.
     NOTE: In a production setting, this function would contain real OS commands
-    to throttle or block traffic. A '--dry-run' flag would be essential.
+    to throttle or block traffic. The DRY_RUN flag is essential for safety.
     """
+    if DRY_RUN:
+        print("ACTUATOR: dry-run enabled. logging only.")
+        return
+    
     try:
         if state == TernState.CO_CREATE:
             print("ACTUATOR: No action required. System is stable.")
@@ -282,8 +312,8 @@ def execute_firewall_action(state: TernState):
         "name": "Ternary Firewall Check",
         "action": action_map[state],
         "message": message,
-        "state_value": state,
-        "source": "firewall_v9.0.py",
+        "state_value": state.value,
+        "source": "firewall_v9.1.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
@@ -295,23 +325,32 @@ def execute_firewall_action(state: TernState):
 
     if state == TernState.CO_CREATE:
         print(f"SYSTEM OK: {message}")
-        trigger_mandatory_audit(event_data)
+        guarded_audit(event_data, state)
         print(f"*** RESOLUTION COMPLETE. THE SYSTEM HAS ACHIEVED HARMONY AT {HARMONY}Hz. ***")
     elif state == TernState.ALIGN:
         trigger_bug_report("warning", message)
-        trigger_mandatory_audit(event_data)
+        guarded_audit(event_data, state)
     elif state == TernState.REFRAIN:
         trigger_bug_report("critical", message)
-        trigger_mandatory_audit(event_data)
+        guarded_audit(event_data, state)
+
+def parse_args():
+    """Parses command-line arguments to enable dry-run mode."""
+    global DRY_RUN
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dry-run", action="store_true", help="Log actions without executing them.")
+    args, unknown = ap.parse_known_args() # Use parse_known_args to ignore other CLI args
+    DRY_RUN = args.dry_run
 
 # ====================
 # MAIN EXECUTION
 # ====================
 if __name__ == "__main__":
+    parse_args()
+    
     # Simulate a critical failure (State 9)
     print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
     metrics = get_realtime_metrics_from_system()
-    # Force a critical state by setting available memory below the threshold.
     metrics["hardware_information"]["memory_available_gib"] = 0.4
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
@@ -321,7 +360,6 @@ if __name__ == "__main__":
     # Simulate a deliberate ALIGN state
     print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) ---")
     metrics = get_realtime_metrics_from_system()
-    # Force an align state by setting available memory below the align threshold.
     metrics["hardware_information"]["memory_available_gib"] = 1.4
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
