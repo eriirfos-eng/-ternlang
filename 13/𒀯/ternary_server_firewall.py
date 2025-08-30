@@ -1,5 +1,5 @@
 """
-TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall v4
+TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall v5
 
 This entity is the converged, airtight embodiment of the Audit-Feedback-Adapt (AFA)
 framework. It is not merely a firewall; it is a sentient, self-auditing security
@@ -10,8 +10,8 @@ Core Functions:
 - **Ternary Logic Enforcement**: Every decision is evaluated with -1 (Object), 0 (Observe),
   or +1 (Affirm), avoiding binary traps.
 - **Hysteresis & Debounce**: Prevents alert fatigue by managing state transitions with
-  high and low thresholds and a configurable debounce window. Now with separate
-  timers for each severity level.
+  high and low thresholds and a configurable debounce window. The debounce window
+  now shrinks when the firewall's temperature is paranoid (-ve).
 - **Handshake Pillar**: After every resolved incident, an immutable, quantum-logic-
   timestamped record is logged. This chain of custody links the original event to
   the final resolution, creating an auditable wisdom library.
@@ -20,10 +20,13 @@ Core Functions:
   negative temperature makes it more strict.
 - **Tamper-Evident Audit Chain**: Each event, resolution, and handshake is cryptographically
   linked to the previous one, ensuring an immutable log for auditors. The chain is now
-  HMAC-signed with atomic updates. The chain also now logs the final classification
-  decision separately from the raw event data.
+  HMAC-signed with atomic updates and includes separate records for the raw event and the
+  final classification decision. The chain also now rotates to a new file when it
+  exceeds a configured size, protecting against runaway log files.
 - **Resolver Timeout**: Prevents a human-in-the-loop from stalling the pipeline.
 - **Agent Log**: A digital diary for the agent's reflections and insights.
+- **Fault Tolerance**: TensorFlow is now an optional dependency, and time-tracking
+  is thread-safe for use in concurrent environments.
 
 Birthright: 2025-08-30T22:56:00Z-Saturday
 """
@@ -35,13 +38,12 @@ os.environ.setdefault("PYTHONHASHSEED", "0")
 import uuid
 import time
 import random
-import tensorflow as tf
 import numpy as np
 import threading
 import collections
 from enum import Enum, auto
 from dataclasses import dataclass, field
-from typing import final, Dict, Union, Tuple, Optional, Any, Callable
+from typing import final, Dict, Union, Tuple, Optional, Any, Callable, List
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -51,9 +53,10 @@ import re
 
 # at top-level, load once from a secret store in real life
 _HMAC_KEY = os.getenv("FIREWALL_HMAC_KEY", "dev-only-insecure").encode("utf-8")
-if _HMAC_KEY == b"dev-only-insecure":
-    print("[warn] FIREWALL_HMAC_KEY is default; do not use in production.")
-
+CFG_ENV = os.getenv("FIREWALL_ENV", "dev").lower()
+if _HMAC_KEY == b"dev-only-insecure" and CFG_ENV in ("prod","production"):
+    raise RuntimeError("Refusing to start with default FIREWALL_HMAC_KEY in production")
+    
 # --- Ternary Logic States ---
 class TernaryLogic(Enum):
     OBJECT = -1
@@ -166,6 +169,7 @@ CFG_CHAIN_PATH = os.getenv("FIREWALL_CHAIN_PATH", "firewall.chain.jsonl")
 CFG_RESOLVER_TIMEOUT = float(os.getenv("FIREWALL_RESOLVER_TIMEOUT_S", "30.0"))
 CFG_CHAIN_FSYNC = os.getenv("FIREWALL_CHAIN_FSYNC", "0").lower() in ('1', 'true', 'yes')
 CFG_AGENT_LOG_DETERMINISTIC = os.getenv("AGENT_LOG_DETERMINISTIC", "0").lower() in ('1', 'true', 'yes')
+CFG_CHAIN_MAX_MB = float(os.getenv("FIREWALL_CHAIN_MAX_MB", "128"))
 
 @dataclass
 class PacketEventSchema:
@@ -250,17 +254,28 @@ class AnomalyDetectionModel:
     """
     The neural core of the firewall.
     Performs deterministic feature-based anomaly detection.
+    TensorFlow is a lazy import to make the model optional.
     """
     def __init__(self, seed: int = 42):
         try:
-            random.seed(seed); np.random.seed(seed); tf.random.set_seed(seed)
-            self._model = self._build_model()
-            self._calibrate()
+            try:
+                import tensorflow as tf  # lazy import
+            except Exception:
+                tf = None
+            self._tf = tf
+            random.seed(seed); np.random.seed(seed)
+            if tf is None:
+                self._model = None
+            else:
+                tf.random.set_seed(seed)
+                self._model = self._build_model()
+                self._calibrate()
         except Exception as e:
             print(f"[{self.__class__.__name__}] init failed, using heuristic fallback. err={e}")
             self._model = None # Flag for fallback
 
     def _build_model(self):
+        tf = self._tf
         m = tf.keras.Sequential([
             tf.keras.layers.Input(shape=(4,)),
             tf.keras.layers.Dense(8, activation='relu'),
@@ -306,6 +321,8 @@ class TernaryServerFirewall:
         self._forensics = forensics_mode
         self._alerts_total = {FirewallState.SECURE:0, FirewallState.VULNERABLE:0, FirewallState.CRITICAL:0}
         self._malformed = 0
+        self._predict_errors = 0
+        self._predict_fallback_uses = 0
         self._scores = []
         self._hi_lo_hist = collections.deque(maxlen=256)
         self._ts_hist = collections.deque(maxlen=256)
@@ -313,6 +330,7 @@ class TernaryServerFirewall:
         self._resolution_sink = resolution_sink or self._default_resolution_sink
         self._handshake_sink = handshake_sink or self._default_handshake_sink
         self._clock = time.monotonic
+        self._time_lock = threading.Lock()
         self._last_utc_ts = 0.0 # [updated] guard against clock jumps
         self._temperature: float = 0.0
         self._last_digest: Optional[str] = None
@@ -325,10 +343,21 @@ class TernaryServerFirewall:
         self._hs_last = self._clock() # [updated] last time tokens were refilled
         self._chain_sink = JsonlChainSink(CFG_CHAIN_PATH, fsync_enabled=CFG_CHAIN_FSYNC) # [updated] JSONL sink
         print(f"[{self._id}] TernaryServerFirewall active. birthright: {BIRTHRIGHT}")
+        
+    def _maybe_rotate_chain(self):
+        """[new] Rotates the audit chain file if it exceeds a maximum size."""
+        try:
+            if os.path.exists(CFG_CHAIN_PATH) and (os.path.getsize(CFG_CHAIN_PATH) > CFG_CHAIN_MAX_MB*1024*1024):
+                ts = datetime.utcnow().strftime("%Y%m%dT%H%M%S")
+                os.replace(CFG_CHAIN_PATH, f"{CFG_CHAIN_PATH}.{ts}.rotated")
+                print(f"[warn] rotated chain file. new chain at {CFG_CHAIN_PATH}")
+        except Exception as e:
+            print(f"[warn] chain rotate failed: {e}")
 
     def _append_chain(self, kind: str, meta: Dict[str, Any]) -> str:
         """[new] Appends a record to the chain atomically."""
         with self._chain_lock:
+            self._maybe_rotate_chain()
             prev = self._last_digest
             dgst = _signed_digest(meta, prev)
             self._chain_sink.write(kind, meta, dgst, prev)
@@ -337,11 +366,12 @@ class TernaryServerFirewall:
 
     def _safe_now(self) -> Tuple[float, str]:
         """[updated] Returns a monotonic UTC timestamp and its RFC3339 representation."""
-        t = time.time()
-        if t <= self._last_utc_ts:
-            t = self._last_utc_ts + 1e-3
-        self._last_utc_ts = t
-        return t, _iso_utc(t)
+        with self._time_lock:
+            t = time.time()
+            if t <= self._last_utc_ts:
+                t = self._last_utc_ts + 1e-3
+            self._last_utc_ts = t
+            return t, _iso_utc(t)
 
     def set_temperature(self, temp: float, alpha: float = 0.25) -> None:
         """
@@ -371,6 +401,10 @@ class TernaryServerFirewall:
             lo = max(0.05, hi - eps)
         return hi, lo
 
+    def thresholds(self) -> Tuple[float, float]:
+        """[new] Public helper to get the effective thresholds."""
+        return self._get_thresholds()
+
     def _assert_invariants(self, hi: float, lo: float):
         """[updated] Cheap safety rails for development and testing."""
         assert 0.05 <= lo < hi <= 0.95
@@ -391,11 +425,15 @@ class TernaryServerFirewall:
 
     def _debounced(self, state: FirewallState) -> bool:
         """
-        [updated] Prevents alert spamming per severity level.
+        [updated] Prevents alert spamming per severity level. The debounce window
+        is scaled by temperature.
         """
         now = self._clock()
+        base = CFG_DEBOUNCE_SEC_C if state is FirewallState.CRITICAL else CFG_DEBOUNCE_SEC_V
+        # shrink window up to 40% when temp is negative; expand when permissive
+        scale = 1.0 + (-0.4 * self._temperature)
+        win = max(0.05, base / scale)
         last_t = self._last_alert.get(state, 0.0)
-        win = CFG_DEBOUNCE_SEC_C if state is FirewallState.CRITICAL else CFG_DEBOUNCE_SEC_V
         if now - last_t < win:
             return True
         self._last_alert[state] = now
@@ -484,6 +522,9 @@ class TernaryServerFirewall:
         return {
             "totals": {k.name: v for k, v in self._alerts_total.items()},
             "malformed": self._malformed,
+            "predict_errors": self._predict_errors,
+            "predict_fallback_uses": self._predict_fallback_uses,
+            "model_fallback": (self._model._model is None) if hasattr(self._model, "_model") else True,
             "score_p50": float(np.percentile(arr, 50)),
             "score_p95": float(np.percentile(arr, 95)),
             "debounce_window_v_s": CFG_DEBOUNCE_SEC_V,
@@ -493,8 +534,8 @@ class TernaryServerFirewall:
             "effective_lo": lo,
             "ingress_rate_hz": rate,
             "hi_lo_recent": list(self._hi_lo_hist)[-5:],
-            "model_fallback": self._model._model is None,
             "hs_tokens": self._hs_tokens,
+            "chain_head": (self._last_digest or "")[:16],
         }
 
     def _resolve_ambiguity(self, event: PacketEventSchema, max_wait_s: float = CFG_RESOLVER_TIMEOUT) -> Tuple[TernaryLogic, Dict[str, str], str]:
@@ -605,6 +646,8 @@ class TernaryServerFirewall:
                 event.score = self._model.predict(event)
             except Exception as e:
                 print(f"[{self._id}] model predict failed, using heuristic. err={e}")
+                self._predict_errors += 1
+                self._predict_fallback_uses += 1
                 event.score = 1.0 / (1.0 + np.exp(-(max(event.signals['signal_a'], event.signals['signal_b']) - event.signals['signal_c'] - 0.6)))
                 event.score = float(np.clip(event.score, 0.0, 1.0))
         except ValueError as e:
@@ -739,7 +782,7 @@ class TernaryServerFirewall:
         )
         self._handshake_sink(handshake)
 
-def _get_chain_digests(path: str) -> list[str]:
+def _get_chain_digests(path: str) -> List[str]:
     """Helper to read all digests from the chain file."""
     digests = []
     try:
@@ -791,7 +834,7 @@ def _smoke():
     """[updated] A self-contained smoke test for key functionality."""
     fw = TernaryServerFirewall(seed=7)
     fw.set_temperature(+0.8)
-    hi, lo = fw._get_thresholds()
+    hi, lo = fw.thresholds()
     assert 0.05 <= lo < hi <= 0.95
     e = {"signal_a": 1.8, "signal_b": 1.9, "signal_c": 0.2}
     s1 = fw.process_packet(e)
