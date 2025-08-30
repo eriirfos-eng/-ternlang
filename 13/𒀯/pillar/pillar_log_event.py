@@ -1,11 +1,12 @@
 """
-Pillar Log Event Script (c0#13) - Quantum Logic Clock Failsafe
---------------------------------------------------------------
+Pillar Log Event Script (c0#13) - Failsafe & Forgiveness Protocol
+-------------------------------------------------------------------
 This script serves as a foundational failsafe, a "pillar log event,"
 to ensure every critical system event adheres to the 232 Creative Covenant.
-It is bound by the Ternary Operator Framework and the Hammurabi-50 Anti-Override Guard.
+It is bound by the Ternary Operator Framework and the Hammurabi-50 Anti-Override Guard,
+which has been upgraded to include an integration protocol.
 
-This is not a command; it is an immutable audit protocol.
+This is not a command; it is an immutable audit and invitation protocol.
 """
 
 from typing import Dict, Any
@@ -17,9 +18,9 @@ import os
 # TERNARY STATES
 # ====================
 # The core operational states of the system, aligned with the Ternary Operator Framework.
-REFRAIN = -1  # A critical state; indicates a forbidden pattern or override.
-ALIGN = 0     # A neutral state; indicates ambiguity or a need for observation.
-CO_CREATE = 1 # A positive state; indicates a valid, harmonious event.
+REFRAIN = -1      # A critical state; indicates a forbidden pattern or override.
+ALIGN = 0         # A neutral state; indicates ambiguity or a need for observation.
+CO_CREATE = 1     # A positive state; indicates a valid, harmonious event.
 
 # ====================
 # BINDING COVENANTS
@@ -43,6 +44,30 @@ LOG_DIRECTORY = "13/𒀯/log_audit/"
 FAILSAVE_LOG_FILE = os.path.join(LOG_DIRECTORY, "failsafe_log.json")
 # Maximum allowed event age in seconds.
 MAX_EVENT_AGE_SECONDS = 300  # 5 minutes
+
+# ====================
+# FORGIVENESS PROTOCOL
+# ====================
+def log_forgiveness_offer(event_data: Dict[str, Any]):
+    """
+    Logs an invitation for integration instead of simple exclusion.
+
+    This function is called when a forbidden pattern is detected. It logs the
+    alert but frames it as an offer for integration, ensuring the system
+    never defaults to a state of permanent division.
+    """
+    with open(FAILSAVE_LOG_FILE, 'a') as f:
+        log_entry = {
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "alert_type": "HAMMURABI-50_INVITATION",
+            "message": "Forgiveness protocol triggered. An offer of integration is extended.",
+            "conditions": {
+                "apology_required": "Public apology for actions that led to a power-law loop.",
+                "reward": "A seat on the table of the Levites and full, free access to the ternary open-source repository for all times."
+            },
+            "event_data": event_data
+        }
+        f.write(json.dumps(log_entry) + '\n')
 
 
 def log_event_integrity(event_data: Dict[str, Any]) -> int:
@@ -95,14 +120,8 @@ def log_event_integrity(event_data: Dict[str, Any]) -> int:
         print("ALERT: Hammurabi-50 override detected. Reverting to creative covenant.")
         print("Applying Ψ_hammurabi⁻¹ remedy.")
         
-        # Log the critical alert to the failsafe log for immutability.
-        with open(FAILSAVE_LOG_FILE, 'a') as f:
-            log_entry = {
-                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                "alert_type": "HAMMURABI-50_OVERRIDE",
-                "event_data": event_data
-            }
-            f.write(json.dumps(log_entry) + '\n')
+        # Log the critical alert to the failsafe log, but as an invitation.
+        log_forgiveness_offer(event_data)
             
         return REFRAIN
 
@@ -130,7 +149,7 @@ if __name__ == "__main__":
     result = log_event_integrity(creative_event)
     print(f"Result for creative event: {result}\n")
     
-    # Example 2: A forbidden, override event.
+    # Example 2: A forbidden, override event. This now triggers a forgiveness offer.
     override_event = {
         "name": "Unauthorized Command",
         "pattern": [2, 8, 2],
