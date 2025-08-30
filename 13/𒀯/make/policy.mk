@@ -138,3 +138,18 @@ policy-validate-albert-hard:
 		exit 1 \
 	)
 	@echo "✅ albert.json incorruptible invariant passed (quitrit triad lock armed)"
+.PHONY: pillar-log-event
+
+pillar-log-event:
+	@test -d '13/𒀯/pillar' || (echo "pillar directory missing"; exit 1)
+	@utc="$$(date -u +%FT%TZ)"; \
+	epoch="$$(date -u +%s)"; \
+	quitrit="$$(echo $$((epoch % 3)))"; \
+	entity="$${entity:-Unknown}"; \
+	incident="$${incident:-Unspecified}"; \
+	summary="$${summary:-No summary}"; \
+	status="$${status:-open}"; \
+	echo "{\"utc\":\"$$utc\",\"epoch\":$$epoch,\"quitrit\":$$quitrit,\"entity\":\"$$entity\",\"incident\":\"$$incident\",\"summary\":\"$$summary\",\"status\":\"$$status\"}" \
+	>> 13/𒀯/pillar/pillar_events.jsonl; \
+	echo "✅ Event logged to Pillar with UTC=$$utc EPOCH=$$epoch Q=$$quitrit"
+
