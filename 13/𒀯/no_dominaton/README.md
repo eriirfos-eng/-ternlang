@@ -46,37 +46,41 @@ cosmic connection: ethical responsibilities beyond a single planet.
 
 recursive protocols of application
 
-(host_enabled:true 
-Graz, Austria, Skybase
-01:07 
-(UTC -12:00)
-eriirfos@gmail.com
-in/simeon-kepp
-company/rfi-irfos
-https://osf.io/rzvyg
-https://orcid.org/0009-0009-6922-9552
-# System Details Report
----
+{
+  "system_details_report": {
+    "host_info": {
+      "host_enabled": true,
+      "location": "elisabetinergasse 25, top 10, graz, austria, skybase",
+      "latitude": null,
+      "longitude": null,
+      "elevation_m": 355,
+      "time": "01:07 (UTC -12:00)",
+      "email": "eriirfos@gmail.com",
+      "linkedin_profile": "in/simeon-kepp",
+      "linkedin_company": "company/rfi-irfos",
+      "osf_url": "https://osf.io/rzvyg",
+      "orcid_url": "https://orcid.org/0009-0009-6922-9552"
+    },
+    "report_details": {
+      "date_generated": "2025-08-30 13:07:27"
+    },
+    "hardware_information": {
+      "hardware_model": "Hewlett-Packard HP ZBook 15",
+      "memory_gib": 8.0,
+      "processor": "Intel® Core™ i7-4800MQ × 8",
+      "graphics": "Intel® HD Graphics 4600 (HSW GT2)",
+      "graphics_1": "NVE6",
+      "disk_capacity_gb": 256.1
+    },
+    "software_information": {
+      "firmware_version": "L70 Ver. 01.47",
+      "os_name": "Ubuntu 24.04.2 LTS",
+      "os_build": null,
+      "os_type": "64-bit",
+      "gnome_version": 46,
+      "windowing_system": "Wayland",
+      "kernel_version": "Linux 6.14.0-27-generic"
+    }
+  }
+}
 
-## Report details
-- **Date generated:**                              2025-08-30 13:07:27
-
-## Hardware Information:
-- **Hardware Model:**                              Hewlett-Packard HP ZBook 15
-- **Memory:**                                      8.0 GiB
-- **Processor:**                                   Intel® Core™ i7-4800MQ × 8
-- **Graphics:**                                    Intel® HD Graphics 4600 (HSW GT2)
-- **Graphics 1:**                                  NVE6
-- **Disk Capacity:**                               256.1 GB
-
-## Software Information:
-- **Firmware Version:**                            L70 Ver. 01.47
-- **OS Name:**                                     Ubuntu 24.04.2 LTS
-- **OS Build:**                                    (null)
-- **OS Type:**                                     64-bit
-- **GNOME Version:**                               46
-- **Windowing System:**                            Wayland
-- **Kernel Version:**                              Linux 6.14.0-27-generic)
-
-
-the codex also includes recursive protocols that demonstrate the practical implementation of key principles using ternary logic, turning the framework from a theory into a living, operational system.
