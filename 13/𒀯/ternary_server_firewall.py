@@ -1,17 +1,11 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v10.5
-The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
-and a self-correcting logic engine.
+Ternary Resolution Firewall - The 3-6-9 Protocol v10.6.2 (Nexus)
+The living pipeline for a distributed Mixture-of-Experts (MoE) system.
 
-This firewall now operates using a symbolic, Mixture-of-Experts (MoE) logic
-to analyze system state. It applies a ternary problem-solving tree based on the
-3-6-9 principle as the core defensive logic.
-
-The principles are mapped as follows:
-3: CO-CREATE - The creative state. All systems are in harmony.
-6: ALIGN     - The reflection state. An anomaly or strain is detected. Throttling and observation are required.
-9: REFRAIN   - The resolution state. A critical breach or failure requires a hard-stop.
-432: The Harmonious Endpoint. This is the goal state of the system, a return to natural resonance.
+This firewall acts as a central nexus, coordinating a collection of external
+agents or LLMs to evaluate system state. It no longer contains the expert
+logic directly but synthesizes the collective competence of its distributed
+endpoints.
 """
 import os
 import datetime
@@ -25,6 +19,10 @@ import argparse
 from threading import Lock
 import hashlib
 import sys
+import asyncio
+import httpx # Use httpx for async http requests
+import hmac, base64
+import uuid
 
 # --- TOML compatibility guard for Python < 3.11 ---
 try:
@@ -56,20 +54,36 @@ _last_committed_state = None
 _state_lock = Lock()
 CONFIG_PATH = None
 CONFIG_SHA256 = None
+AGENTS = {}
+AGENT_SECRETS = {}
+
+# Define the three core parties and map agents to them
+# This is a critical new rule: a decision must have at least one expert from each party
+AGENT_PARTIES = {
+    "universia": ["environmental"], # Pertains to cosmos, environment, external signals
+    "digital": ["network", "security"],    # Pertains to software, network, logic
+    "organic": ["hardware"]       # Pertains to physical systems, user hardware
+}
+
+# New centralized mapping for robust party detection
+AGENT_PREFIX_TO_PARTY = {
+    "environmental": "universia",
+    "network": "digital",
+    "security": "digital",
+    "hardware": "organic",
+}
+
+def _party_for_agent(agent_name: str) -> str | None:
+    """Returns the party name for a given agent name, or None if unknown."""
+    prefix = (agent_name or "").split("_", 1)[0]
+    return AGENT_PREFIX_TO_PARTY.get(prefix)
+
 
 # ====================
 # FALLBACK MECHANISM & THRESHOLDS
 # ====================
-# Hard-coded expectation of a minimum 10% risk of failure.
 FALLBACK_RISK_THRESHOLD = 0.10
 
-"""
-Threshold semantics:
-- *_min: lower is worse (below align_min adds ALIGN pressure; below refrain_min = hard REFRAIN)
-- *_max: higher is worse (above align_max adds ALIGN pressure; above refrain_max = hard REFRAIN)
-"""
-# These thresholds define the ternary states for each metric.
-# NOTE: In a production environment, these should be loaded from a config file.
 THRESHOLDS = {
     "hardware": {
         "memory_available_gib": {"refrain_min": 0.5, "align_min": 1.5},
@@ -90,8 +104,6 @@ THRESHOLDS = {
         "solar_activity_index": {"refrain_max": 8, "align_max": 6}
     }
 }
-
-# Hysteresis buffer to prevent state flapping.
 LAST_STATES = deque(maxlen=5)
 
 def _require(d, path):
@@ -118,16 +130,23 @@ def _tighten_perms(path: Path):
     except Exception: 
         pass
 
+def _sig(name: str, body: bytes) -> str:
+    """Generates an HMAC signature for a request body."""
+    key = AGENT_SECRETS.get(name)
+    if not key:
+        return ""
+    # The user suggested removing base64, but it is required for b16encode
+    return base64.b16encode(hmac.new(key.encode(), body, digestmod="sha256").digest()).decode()
+
 def load_config(path="firewall.toml"):
     """Loads and validates configuration from a TOML file."""
-    global CONFIG_PATH, CONFIG_SHA256
+    global CONFIG_PATH, CONFIG_SHA256, AGENTS, AGENT_SECRETS
     CONFIG_PATH = path
     
     try:
         with open(path,"rb") as f:
             cfg = tomllib.load(f)
         
-        # Check for group/other writable permissions
         try:
             st = os.stat(path)
             if (st.st_mode & 0o022):
@@ -135,85 +154,33 @@ def load_config(path="firewall.toml"):
         except Exception:
             pass
 
-        # sanity checks
         _require(cfg, "risk.fallback_threshold")
         _require(cfg, "risk.audit_min_interval_s")
-        for dom, keys in {
-            "hardware": ["memory_available_gib","processor_cores_total","disk_free_gb"],
-            "software": ["active_processes","critical_services_down"],
-            "network":  ["latency_ms","packet_loss_percent"],
-            "environmental": ["external_temp_c","schumann_hz_power","solar_activity_index"],
-        }.items():
-            if dom not in cfg: continue
-            for k in keys:
-                if k not in cfg[dom]:
-                    raise KeyError(f"missing config: {dom}.{k}")
+        _require(cfg, "agents")
 
-        # Update global constants
         global FALLBACK_RISK_THRESHOLD, AUDIT_MIN_INTERVAL_S, THRESHOLDS
         FALLBACK_RISK_THRESHOLD = cfg["risk"]["fallback_threshold"]
         AUDIT_MIN_INTERVAL_S    = cfg["risk"]["audit_min_interval_s"]
         
-        # Rebuild THRESHOLDS from config
+        AGENTS = cfg["agents"]
+        AGENT_SECRETS = cfg.get("agents_secrets", {})
+        
         T = {}
         for domain in ("hardware","software","network","environmental"):
             T[domain] = cfg.get(domain, THRESHOLDS.get(domain, {}))
         THRESHOLDS = T
         CONFIG_SHA256 = _sha256(path)
-        print("CONFIG: Successfully loaded thresholds from firewall.toml")
+        print("CONFIG: Successfully loaded thresholds, agents, and secrets from firewall.toml")
     except Exception as e:
-        print(f"CONFIG WARN: using built-in thresholds ({e})")
-
-# ====================
-# FORGIVENESS PROTOCOL
-# ====================
-FORGIVENESS_LOG_FILE = Path("forgiveness_log.json")
-MAX_FORGIVENESS_OFFERS = 490 # 7x70
-
-def _atomic_write(path: Path, payload: dict):
-    """
-    Safely writes to a file by using a temporary file and then replacing the original.
-    This prevents file corruption during a crash.
-    """
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    with open(tmp, "w") as f:
-        json.dump(payload, f)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp, path)
-
-def load_forgiveness_log():
-    """Loads the forgiveness counter from a log file."""
-    if FORGIVENESS_LOG_FILE.exists():
-        with open(FORGIVENESS_LOG_FILE, 'r') as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return {"count": 0}
-    return {"count": 0}
-
-def save_forgiveness_log(data):
-    """Saves the forgiveness counter to a log file using an atomic write."""
-    _atomic_write(FORGIVENESS_LOG_FILE, data)
-    _tighten_perms(FORGIVENESS_LOG_FILE)
-
-def offer_personal_grace():
-    """Human-callable function to reset the forgiveness counter."""
-    log_data = load_forgiveness_log()
-    log_data["count"] = 0
-    save_forgiveness_log(log_data)
-    print("PERSONAL GRACE OFFERED: Forgiveness counter has been reset by human intervention.")
-    return TernState.CO_CREATE
+        print(f"CONFIG WARN: using built-in defaults ({e})")
 
 # ====================
 # SENSOR & DATA REPORTING
 # ====================
 def utc_now_z():
-    """Returns a correctly formatted ISO 8601 timestamp with Z for UTC."""
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 class Samplers:
-    """Dependency injection for sensor data, for deterministic testing."""
     def latency_ms(self): return random.uniform(20, 100)
     def packet_loss_percent(self): return random.uniform(0, 3)
     def external_temp_c(self): return random.uniform(20, 30)
@@ -221,7 +188,6 @@ class Samplers:
     def solar_activity_index(self): return random.uniform(2, 5)
 
 class FixedSamplers(Samplers):
-    """A fixed sampler for deterministic demos."""
     def __init__(self, lat=50, loss=0.0, temp=25, sch=8.0, solar=3.0):
         self._lat, self._loss, self._temp, self._sch, self._solar = lat, loss, temp, sch, solar
     def latency_ms(self): return self._lat
@@ -231,13 +197,7 @@ class FixedSamplers(Samplers):
     def solar_activity_index(self): return self._solar
 
 def get_realtime_metrics_from_system(samplers: Samplers = Samplers()) -> dict:
-    """
-    Collects real-time hardware, software, and network metrics.
-    Simulates environmental data via the Samplers class.
-    Adds a safe fallback if psutil is not available.
-    """
     if psutil is None:
-        # Minimal safe defaults for headless sandboxes
         return {
             "hardware_information": {
                 "memory_available_gib": 2.0,
@@ -260,20 +220,13 @@ def get_realtime_metrics_from_system(samplers: Samplers = Samplers()) -> dict:
         }
 
     try:
-        # Hardware Metrics
         ram_available_gib = psutil.virtual_memory().available / (1024 ** 3)
         disk_free_gb = psutil.disk_usage('/').free / (1024 ** 3)
         processor_cores_total = psutil.cpu_count(logical=True)
-        
-        # Software Metrics
         active_processes = len(psutil.pids())
-        critical_services_down = 0 # Placeholder for a real check
-        
-        # Network Metrics
+        critical_services_down = 0
         latency_ms = samplers.latency_ms()
         packet_loss_percent = samplers.packet_loss_percent()
-
-        # Environmental Metrics (simulated for demonstration)
         external_temp_c = samplers.external_temp_c()
         schumann_hz_power = samplers.schumann_hz_power()
         solar_activity_index = samplers.solar_activity_index()
@@ -320,16 +273,8 @@ def _sanitize(metrics: dict) -> dict:
     env["solar_activity_index"] = max(0.0, nz(env.get("solar_activity_index"), 0.0))
     return metrics
 
-def trigger_bug_report(severity: str, message: str):
-    """Simulates triggering a bug report for immediate attention."""
-    print(f"[{utc_now_z()}] *** BUG REPORT TRIGGERED ***")
-    print(f"Severity: {severity.upper()}")
-    print(f"Message: {message}\n")
-
 def _digest(metrics: dict) -> dict:
-    """
-    Creates a compact metrics digest for logging.
-    """
+    """Creates a compact metrics digest for logging."""
     try:
         hw, sw, nw, env = (metrics[k] for k in ("hardware_information","software_information","network_information","environmental_information"))
         return {
@@ -345,21 +290,15 @@ def _digest(metrics: dict) -> dict:
     except Exception:
         return {}
 
-
 def trigger_mandatory_audit(event_data: dict):
-    """
-    Simulates triggering a mandatory audit of all three forces (OI, DI, UI).
-    This would send the event data to the Pillar for logging.
-    """
+    """Simulates triggering a mandatory audit of all three forces (OI, DI, UI)."""
     event_data["timestamp"] = utc_now_z()
-    
     print(f"[{event_data['timestamp']}] *** MANDATORY AUDIT TRIGGERED ***")
     print("Sending event data to the Pillar for logging and verification:")
     print(json.dumps(event_data, indent=2))
     print("\nAudit complete. All three intelligences are now observing.")
 
 def guarded_audit(event_data: dict, state: TernState):
-    """Rate-limits the audit to prevent spamming using monotonic time."""
     global _last_audit_ts
     now = time.monotonic()
     with _state_lock:
@@ -369,10 +308,8 @@ def guarded_audit(event_data: dict, state: TernState):
     trigger_mandatory_audit(event_data)
 
 def _jlog(kind: str, payload: dict):
-    """
-    Emits a structured JSON log to stdout for machine parsing.
-    """
-    rec = {"ts": utc_now_z(), "kind": kind, **payload}
+    """Emits a structured JSON log to stdout for machine parsing."""
+    rec = {"ts": utc_now_z(), "id": str(uuid.uuid4()), "kind": kind, **payload}
     print(json.dumps(rec, separators=(",",":")), file=sys.stdout, flush=True)
 
 def write_prom(metrics: dict, state: TernState):
@@ -380,156 +317,148 @@ def write_prom(metrics: dict, state: TernState):
     PROM_TEXTFILE = Path("/var/lib/node_exporter/textfile_collector/ternary_firewall.prom")
     try:
         lines = [
+            f'# HELP ternary_firewall_state Current state of the firewall (3=CO_CREATE, 6=ALIGN, 9=REFRAIN).',
+            f'# TYPE ternary_firewall_state gauge',
             f'ternary_firewall_state{{}} {state.value}',
+            f'# HELP ternary_firewall_latency_ms Network latency in milliseconds.',
+            f'# TYPE ternary_firewall_latency_ms gauge',
             f'ternary_firewall_latency_ms{{}} {metrics["network_information"]["latency_ms"]}',
+            f'# HELP ternary_firewall_packet_loss_pct Network packet loss percentage.',
+            f'# TYPE ternary_firewall_packet_loss_pct gauge',
             f'ternary_firewall_packet_loss_pct{{}} {metrics["network_information"]["packet_loss_percent"]}',
+            f'# HELP ternary_firewall_mem_available_gib Available memory in GiB.',
+            f'# TYPE ternary_firewall_mem_available_gib gauge',
             f'ternary_firewall_mem_available_gib{{}} {metrics["hardware_information"]["memory_available_gib"]}',
+            f'# HELP ternary_firewall_disk_free_gb Free disk space in GB.',
+            f'# TYPE ternary_firewall_disk_free_gb gauge',
             f'ternary_firewall_disk_free_gb{{}} {metrics["hardware_information"]["disk_free_gb"]}',
+            f'# HELP ternary_firewall_last_transition_epoch_seconds Epoch seconds of the last state transition.',
+            f'# TYPE ternary_firewall_last_transition_epoch_seconds gauge',
+            f'ternary_firewall_last_transition_epoch_seconds{{}} {time.time()}',
+            f'# HELP ternary_firewall_config_sha256 A gauge to indicate if a config file is loaded (1) and its hash.',
+            f'# TYPE ternary_firewall_config_sha256 gauge',
         ]
+        if CONFIG_SHA256:
+            lines.append(f'ternary_firewall_config_sha256{{sha256="{CONFIG_SHA256}"}} 1')
+        else:
+            lines.append('ternary_firewall_config_sha256{} 0')
+
         PROM_TEXTFILE.parent.mkdir(parents=True, exist_ok=True)
         PROM_TEXTFILE.write_text("\n".join(lines) + "\n")
     except Exception as e:
         print(f"PROM WARN: {e}")
 
-def clamp(x, lo=0.0, hi=1.0): 
-    """Clamps a value to a specified range."""
-    return max(lo, min(hi, x))
-
 # ====================
-# TERNARY RESOLUTION TREE WITH MOE-13 LOGIC
+# DISTRIBUTED MOE RESOLUTION
 # ====================
-def get_competence_vector(metrics: dict) -> dict:
+async def _post_with_retry(client, url, body, headers, attempts=2, backoff=0.5):
     """
-    Symbolically generates a 6D competence vector from system metrics,
-    representing the state of the model's core competencies.
+    Tries to POST to a URL with a simple exponential backoff retry.
+    """
+    for i in range(attempts):
+        try:
+            r = await client.post(url, content=body, headers=headers)
+            r.raise_for_status()
+            return r
+        except Exception as e:
+            if i+1 == attempts: raise
+            print(f"RETRY: {url} failed on attempt {i+1}/{attempts}, retrying...")
+            await asyncio.sleep(backoff*(2**i))
+
+async def query_distributed_experts(metrics: dict) -> list:
+    """
+    Sends the system metrics to all registered agents and collects their responses.
+    """
+    timeout = httpx.Timeout(connect=3.0, read=6.0, write=3.0, pool=3.0)
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        tasks = []
+        body = json.dumps(metrics, separators=(",",":")).encode()
+        for agent_name, agent_url in AGENTS.items():
+            headers = {
+              "X-Agent-Name": agent_name,
+              "X-Signature-Alg": "HMAC-SHA256-HEX",
+              "X-Body-Signature": _sig(agent_name, body)
+            }
+            tasks.append(_post_with_retry(client, agent_url, body, headers))
+        
+        responses = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        results = []
+        for (agent_name, _), resp in zip(AGENTS.items(), responses):
+            if isinstance(resp, Exception):
+                print(f"AGENT ERROR: {agent_name} failed with {repr(resp)}")
+                results.append({"expert_name": agent_name, "state_suggestion": "REFRAIN", "score": 0.0, "veto": False, "rationale": "network failure", "error": str(resp)})
+                continue
+            try:
+                payload = resp.json()
+                if not _valid_agent_payload(payload):
+                    raise ValueError("payload is missing required keys or has invalid values")
+                payload.setdefault("expert_name", agent_name)
+                results.append(payload)
+            except Exception as e:
+                print(f"AGENT ERROR: {agent_name} malformed response: {e}")
+                results.append({"expert_name": agent_name, "state_suggestion": "REFRAIN", "score": 0.0, "veto": False, "rationale": "malformed response", "error": str(e)})
+        return results
+
+def _valid_agent_payload(p: dict) -> bool:
+    """Validates the minimal required JSON schema for an expert response."""
+    if not isinstance(p, dict): return False
+    if p.get("state_suggestion") not in TernState.__members__: return False
     
-    Axis 1: Syntax and Grammar (Network health)
-    Axis 2: World Knowledge and Factual Recall (Memory & Disk)
-    Axis 3: Mathematical and Logical Reasoning (CPU Processes)
-    Axis 4: Tool and API Usage (Simulated)
-    Axis 5: Persona and Tone Generation (Simulated)
-    Axis 6: Safety, Ethics, and Policy (Critical Services)
-    
-    NOTE: Values are clamped to [0, 1] to prevent negative or >1.0 results.
-    """
-    hw = metrics["hardware_information"]
-    sw = metrics["software_information"]
-    nw = metrics["network_information"]
+    # Type-check and coerce required fields
+    try:
+        p["score"] = float(p.get("score", 1.0))
+        p["veto"] = bool(p.get("veto", False))
+        p["rationale"] = str(p.get("rationale", ""))
+    except Exception:
+        return False
+    return True
 
-    latency_norm  = nw["latency_ms"] / max(1.0, THRESHOLDS["network"]["latency_ms"]["refrain_max"])
-    mem_norm      = hw["memory_available_gib"] / max(1e-6, THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
-    procs_norm    = sw["active_processes"] / max(1.0, THRESHOLDS["software"]["active_processes"]["refrain_max"])
-    crit_norm     = sw["critical_services_down"] / max(1.0, THRESHOLDS["software"]["critical_services_down"]["refrain_max"])
 
-    return {
-        "syntax_and_grammar": clamp(1.0 - latency_norm),
-        "world_knowledge":    clamp(mem_norm),
-        "logical_reasoning":  clamp(1.0 - procs_norm),
-        "tool_usage":         1.0, # Assumed to be healthy
-        "persona_and_tone":   1.0, # Assumed to be healthy
-        "safety_and_ethics":  clamp(1.0 - crit_norm),
-    }
+def resolve_moe_distributed(expert_responses: list) -> TernState:
+    """
+    Synthesizes the resolutions from a distributed network of experts.
 
-def _consensus_state():
+    Decision order:
+      1) REFRAIN if any veto=True or any state_suggestion==REFRAIN.
+      2) REFRAIN if party quorum not satisfied (must include universia, digital, organic).
+      3) Score-sum between CO_CREATE and ALIGN; ALIGN wins ties.
     """
-    Determines the consensus state from the hysteresis buffer, with a neutral
-    tie-breaker preferring ALIGN, then CO_CREATE, then REFRAIN.
-    """
-    counts = {s: LAST_STATES.count(s) for s in (TernState.CO_CREATE, TernState.ALIGN, TernState.REFRAIN)}
-    # prefer ALIGN on ties, then CO_CREATE, then REFRAIN
-    order = [TernState.ALIGN, TernState.CO_CREATE, TernState.REFRAIN]
-    best = max(order, key=lambda s: (counts[s], -order.index(s)))
-    return best
-
-def resolve_moe13_state(metrics: dict) -> TernState:
-    """
-    Applies a symbolic Mixture-of-Experts logic to evaluate system integrity.
-    This function implements the 1+1=3 principle and a dual-key routing mechanism.
-    """
-    if not metrics:
+    if not expert_responses:
         return TernState.ALIGN
-
-    hw = metrics["hardware_information"]
-    sw = metrics["software_information"]
-    nw = metrics["network_information"]
-    env = metrics["environmental_information"]
-    
-    # --- Hard Cliffs (No Negotiation with Physics) ---
-    if hw["disk_free_gb"] <= 1.0:
-        return TernState.REFRAIN
-    if nw["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["refrain_max"] * 2:
-        return TernState.REFRAIN
-    
-    current_competence = get_competence_vector(metrics)
-    
-    # === Hysteresis Bias ===
-    history_bias = (sum(s.value for s in LAST_STATES) / len(LAST_STATES)) if LAST_STATES else TernState.CO_CREATE.value
-    bias_term = {TernState.CO_CREATE.value: -0.05, TernState.ALIGN.value: 0.0, TernState.REFRAIN.value: 0.05}.get(round(history_bias), 0.0)
-
-    # === Dual-Key Synergistic Routing ===
-    synergy_score = 0.0
-    
-    # High latency + high active processes = emergent critical synergy
-    if nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"] and sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
-        synergy_score += 0.15 
-    
-    # Low memory + high process count = emergent critical synergy
-    if hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"] and sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
-        synergy_score += 0.15
-    
-    # === Safety and Governance (Hard Gate) ===
-    # Hard veto on extreme packet loss
-    if nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["refrain_max"]:
-        return TernState.REFRAIN
         
-    # The safety expert (critical services) has a hard veto.
-    if sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["refrain_max"] or current_competence["safety_and_ethics"] < 0.5:
+    # CRITICAL UNCONDITIONAL RULE: Check for presence of each party
+    present_parties = set()
+    for res in expert_responses:
+        p = _party_for_agent(res.get("expert_name", ""))
+        if p: 
+            present_parties.add(p)
+
+    if len(present_parties) < len(AGENT_PARTIES):
+        missing_parties = [p for p in AGENT_PARTIES.keys() if p not in present_parties]
+        print(f"REFRAIN PROTOCOL: Missing experts from parties: {missing_parties}")
         return TernState.REFRAIN
-        
-    # === Accumulated Pressure ===
-    WEIGHTS = {
-        "mem_available": 0.25, "disk_free": 0.15, "procs": 0.15,
-        "latency": 0.20, "loss": 0.10, "solar": 0.10, "schumann": 0.05,
-        "critical_services": 0.15
-    }
-    W_SUM = sum(WEIGHTS.values())
 
-    procs_per_core = sw["active_processes"] / max(1, hw["processor_cores_total"])
-    score_raw = 0.0
-    # Explicit integer casts for clarity
-    score_raw += WEIGHTS["mem_available"] * int(hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
-    score_raw += WEIGHTS["disk_free"] * int(hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
-    score_raw += WEIGHTS["procs"] * int(procs_per_core > (THRESHOLDS["software"]["active_processes"]["align_max"] / max(1, hw["processor_cores_total"])))
-    score_raw += WEIGHTS["latency"] * int(nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
-    score_raw += WEIGHTS["loss"] * int(nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
-    score_raw += WEIGHTS["solar"] * int(env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
-    score_raw += WEIGHTS["schumann"] * int(env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["align_max"])
-    
-    # Add pressure for any critical service down
-    crit_align = sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["align_max"]
-    score_raw += WEIGHTS["critical_services"] * int(crit_align)
-    
-    # Add the synergistic score and bias to the total and normalize
-    score = clamp((score_raw + synergy_score + bias_term) / max(1e-9, W_SUM), 0.0, 1.0)
-    
-    state = TernState.ALIGN if score > FALLBACK_RISK_THRESHOLD else TernState.CO_CREATE
+    # Hard veto
+    for res in expert_responses:
+        if res.get("veto", False) or res.get("state_suggestion") == "REFRAIN":
+            return TernState.REFRAIN
 
-    # Hysteresis: bias toward previous consensus to reduce flapping
-    LAST_STATES.append(state)
-    if len(LAST_STATES) == LAST_STATES.maxlen:
-        return _consensus_state()
-    return state
+    # Score-weighted synthesis
+    weights = {"CO_CREATE": 0.0, "ALIGN": 0.0}
+    for res in expert_responses:
+        s = res.get("state_suggestion")
+        if s in weights:
+            # The _valid_agent_payload function ensures score is a float
+            weights[s] += max(0.0, res.get("score", 1.0))
+    
+    # ALIGN on tie or majority
+    return TernState.ALIGN if weights["ALIGN"] >= weights["CO_CREATE"] else TernState.CO_CREATE
 
 # ====================
 # ACTUATOR: PROACTIVE ACTION
 # ====================
 def take_physical_action(state: TernState):
-    """
-    Executes a physical or logical action on the host machine based on the
-    ternary state.
-    NOTE: In a production setting, this function would contain real OS commands
-    to throttle or block traffic. The DRY_RUN flag is essential for safety.
-    """
     if DRY_RUN:
         print("ACTUATOR: dry-run enabled. logging only.")
         return
@@ -545,76 +474,61 @@ def take_physical_action(state: TernState):
         print(f"ACTUATOR ERROR: Could not execute action. {e}")
 
 
-def execute_firewall_action(state: TernState, metrics: dict, competence: dict):
-    """
-    Takes a proactive firewall action based on the ternary state and logs to the pillar.
-    """
+def execute_firewall_action(state: TernState, metrics: dict, expert_responses: list):
     action_map = {
         TernState.CO_CREATE: "CO-CREATE",
         TernState.ALIGN: "ALIGN",
         TernState.REFRAIN: "REFRAIN"
     }
 
-    message = ""
+    # Log which experts from each party contributed to the decision
+    contributing_experts = {party: [] for party in AGENT_PARTIES.keys()}
+    for res in expert_responses:
+        expert_name = res.get("expert_name")
+        p = _party_for_agent(expert_name)
+        if p:
+            contributing_experts[p].append(expert_name)
+    
+    _jlog("state_transition", {
+        "state": state.name,
+        "action": action_map[state],
+        "metrics_digest": _digest(metrics),
+        "expert_responses": expert_responses,
+        "contributing_parties": contributing_experts,
+        "parties_present": sorted(list(set(contributing_experts.keys()))),
+        "decision_basis": "party_quorum+score_weight+veto",
+        "config_sha256": CONFIG_SHA256,
+    })
+
+    take_physical_action(state)
+    print(f"[{utc_now_z()}] STATE={state.name} action={action_map[state]} digest={json.dumps(_digest(metrics))}")
+
     if state == TernState.CO_CREATE:
-        message = "All services are enabled. System is in a state of creation."
+        print(f"SYSTEM OK: All services are enabled. System is in a state of creation.")
     elif state == TernState.ALIGN:
-        message = "Initiating throttling protocol for non-essential services. Re-aligning with harmony."
+        print("SYSTEM WARNING: Initiating throttling protocol for non-essential services.")
     elif state == TernState.REFRAIN:
-        log_data = load_forgiveness_log()
-        current_count = log_data.get("count", 0)
-        
-        if current_count < MAX_FORGIVENESS_OFFERS:
-            message = f"Refrain state detected. Forgiveness offer #{current_count + 1} of {MAX_FORGIVENESS_OFFERS}."
-            log_data["count"] = current_count + 1
-            save_forgiveness_log(log_data)
-        else:
-            message = f"Refrain state detected. Forgiveness limit of {MAX_FORGIVENESS_OFFERS} reached. Law is now enforced. Grace must be offered by OI."
-            
+        print("SYSTEM CRITICAL: Blocking all non-essential traffic and shutting down services.")
+    
     event_data = {
         "name": "Ternary Firewall Check",
         "action": action_map[state],
-        "message": message,
         "state_value": state.value,
-        "source": "firewall_v10.5.py",
+        "source": "firewall_v10_6_2.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
             "ui_signed": True
         },
         "metrics_digest": _digest(metrics),
-        "moe_competence": competence,
+        "expert_responses": expert_responses,
+        "contributing_parties": contributing_experts,
         "config_path": CONFIG_PATH,
         "config_sha256": CONFIG_SHA256,
     }
+    guarded_audit(event_data, state)
 
-    _jlog("state_transition", {
-        "state": state.name,
-        "action": action_map[state],
-        "digest": event_data["metrics_digest"],
-        "config_sha256": CONFIG_SHA256,
-    })
-
-    take_physical_action(state)
-
-    # One-line status banner for human ops
-    print(f"[{utc_now_z()}] STATE={state.name} action={action_map[state]} digest={json.dumps(event_data['metrics_digest'])}")
-
-    if state == TernState.CO_CREATE:
-        print(f"SYSTEM OK: {message}")
-        guarded_audit(event_data, state)
-        print(f"*** RESOLUTION COMPLETE. THE SYSTEM HAS ACHIEVED HARMONY AT {HARMONY}Hz. ***")
-    elif state == TernState.ALIGN:
-        trigger_bug_report("warning", message)
-        guarded_audit(event_data, state)
-    elif state == TernState.REFRAIN:
-        trigger_bug_report("critical", message)
-        guarded_audit(event_data, state)
-
-def maybe_execute(state: TernState, metrics: dict, competence: dict):
-    """
-    Executes firewall action only on state transition.
-    """
+async def maybe_execute(state: TernState, metrics: dict, expert_responses: list):
     global _last_committed_state
     changed = False
     with _state_lock:
@@ -623,21 +537,21 @@ def maybe_execute(state: TernState, metrics: dict, competence: dict):
             _last_committed_state = state
     
     if changed:
-        execute_firewall_action(state, metrics, competence)
+        execute_firewall_action(state, metrics, expert_responses)
         write_prom(metrics, state)
     else:
         heartbeat_data = {
             "name":"Ternary Firewall Heartbeat",
             "action":"STEADY",
             "state_value":state.value,
-            "source":"firewall_v10.5.py",
+            "source":"firewall_v10_6_2.py",
             "oiuidi_signatures":{"oi_signed":True,"di_signed":True,"ui_signed":True},
-            "metrics_digest": _digest(metrics)
+            "metrics_digest": _digest(metrics),
+            "expert_responses": expert_responses,
         }
         guarded_audit(heartbeat_data, state)
 
 def parse_args():
-    """Parses command-line arguments to enable dry-run mode and config path."""
     global DRY_RUN
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="Log actions without executing them.")
@@ -653,10 +567,7 @@ def parse_args():
     
     return args
 
-# ====================
-# MAIN EXECUTION
-# ====================
-if __name__ == "__main__":
+async def main():
     args = parse_args()
     load_config(args.config)
     
@@ -665,41 +576,43 @@ if __name__ == "__main__":
         while True:
             metrics = get_realtime_metrics_from_system(sampler)
             metrics = _sanitize(metrics)
-            competence = get_competence_vector(metrics)
-            state = resolve_moe13_state(metrics)
-            maybe_execute(state, metrics, competence)
-            time.sleep(args.loop)
+            expert_responses = await query_distributed_experts(metrics)
+            state = resolve_moe_distributed(expert_responses)
+            await maybe_execute(state, metrics, expert_responses)
+            await asyncio.sleep(args.loop)
     else:
         # One-shot mode with deterministic demos for testing
-        print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
-        metrics = get_realtime_metrics_from_system(FixedSamplers(lat=1001, loss=15.0)) # Veto trigger
+        print("--- SIMULATING A HARD VETO (REFRAIN) ---")
+        metrics = get_realtime_metrics_from_system(FixedSamplers(lat=1001, loss=15.0))
         metrics = _sanitize(metrics)
-        metrics["hardware_information"]["disk_free_gb"] = 0.5
-        competence = get_competence_vector(metrics)
-        state = resolve_moe13_state(metrics)
-        maybe_execute(state, metrics, competence)
+        expert_responses = [{"expert_name": "hardware_expert", "state_suggestion": "REFRAIN", "score": 1.0, "veto": True, "rationale": "simulated veto"}]
+        state = resolve_moe_distributed(expert_responses)
+        await maybe_execute(state, metrics, expert_responses)
 
         print("\n" + "="*50 + "\n")
 
-        # Simulate a deliberate ALIGN state with emergent pressure
-        print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) WITH SYNERGISTIC PRESSURE ---")
+        print("--- SIMULATING A MISSING PARTY (REFRAIN) ---")
         metrics = get_realtime_metrics_from_system(FixedSamplers(lat=201))
         metrics = _sanitize(metrics)
-        metrics["hardware_information"]["memory_available_gib"] = 1.4
-        metrics["software_information"]["active_processes"] = 260
-        competence = get_competence_vector(metrics)
-        state = resolve_moe13_state(metrics)
-        maybe_execute(state, metrics, competence)
+        expert_responses = [
+            {"expert_name": "network_expert", "state_suggestion": "ALIGN", "score": 1.0, "veto": False, "rationale": "low latency"},
+            {"expert_name": "hardware_expert", "state_suggestion": "CO_CREATE", "score": 0.8, "veto": False, "rationale": "plenty of RAM"},
+        ]
+        state = resolve_moe_distributed(expert_responses)
+        await maybe_execute(state, metrics, expert_responses)
 
         print("\n" + "="*50 + "\n")
-        
-        # Simulate a harmonious state (State 3)
-        print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
+
+        print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) WITH ALL PARTIES PRESENT ---")
         metrics = get_realtime_metrics_from_system(FixedSamplers())
         metrics = _sanitize(metrics)
-        competence = get_competence_vector(metrics)
-        state = resolve_moe13_state(metrics)
-        maybe_execute(state, metrics, competence)
+        expert_responses = [
+            {"expert_name": "network_expert", "state_suggestion": "CO_CREATE", "score": 1.0, "veto": False, "rationale": "low latency"},
+            {"expert_name": "hardware_expert", "state_suggestion": "CO_CREATE", "score": 1.0, "veto": False, "rationale": "plenty of RAM"},
+            {"expert_name": "environmental_expert", "state_suggestion": "CO_CREATE", "score": 1.0, "veto": False, "rationale": "schumann resonance stable"},
+        ]
+        state = resolve_moe_distributed(expert_responses)
+        await maybe_execute(state, metrics, expert_responses)
     
     if args.exit_code:
         import sys
@@ -709,3 +622,12 @@ if __name__ == "__main__":
             sys.exit(1)
         else:
             sys.exit(2)
+
+if __name__ == "__main__":
+    try:
+        import httpx
+    except ImportError:
+        print("ERROR: httpx library not found. Please install it with 'pip install httpx'.")
+        sys.exit(1)
+        
+    asyncio.run(main())
