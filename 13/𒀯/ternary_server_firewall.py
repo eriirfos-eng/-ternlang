@@ -1,12 +1,11 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v9.1
+Ternary Resolution Firewall - The 3-6-9 Protocol v10.1
 The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
 and a self-correcting logic engine.
 
-This firewall proactively protects the RFI-IRFOS host server by analyzing
-its state and applying a ternary problem-solving tree based on the 3-6-9 principle.
-It is the core defensive logic in the 'organic and digital intelligence and
-universial intelligence in the loop fallback' pipeline.
+This firewall now operates using a symbolic, Mixture-of-Experts (MoE) logic
+to analyze system state. It applies a ternary problem-solving tree based on the
+3-6-9 principle as the core defensive logic.
 
 The principles are mapped as follows:
 3: CO-CREATE - The creative state. All systems are in harmony.
@@ -38,6 +37,7 @@ HARMONY = 432   # The ultimate endpoint for system resolution.
 DRY_RUN = False
 _last_audit_ts = 0.0
 AUDIT_MIN_INTERVAL_S = 5.0
+_last_committed_state = None
 
 # ====================
 # FALLBACK MECHANISM & THRESHOLDS
@@ -180,6 +180,26 @@ def trigger_bug_report(severity: str, message: str):
     print(f"Severity: {severity.upper()}")
     print(f"Message: {message}\n")
 
+def _digest(metrics: dict) -> dict:
+    """
+    Creates a compact metrics digest for logging.
+    """
+    try:
+        hw, sw, nw, env = (metrics[k] for k in ("hardware_information","software_information","network_information","environmental_information"))
+        return {
+            "mem_gib": round(hw["memory_available_gib"],2),
+            "disk_gb": round(hw["disk_free_gb"],1),
+            "procs": sw["active_processes"],
+            "crit": sw["critical_services_down"],
+            "lat_ms": int(nw["latency_ms"]),
+            "loss_pct": round(nw["packet_loss_percent"],2),
+            "sol": env["solar_activity_index"],
+            "sch": round(env["schumann_hz_power"],2),
+        }
+    except Exception:
+        return {}
+
+
 def trigger_mandatory_audit(event_data: dict):
     """
     Simulates triggering a mandatory audit of all three forces (OI, DI, UI).
@@ -202,12 +222,38 @@ def guarded_audit(event_data: dict, state: TernState):
     trigger_mandatory_audit(event_data)
 
 # ====================
-# TERNARY RESOLUTION TREE WITH FALLBACK
+# TERNARY RESOLUTION TREE WITH MOE-13 LOGIC
 # ====================
-def resolve_369_state(metrics: dict) -> TernState:
+def get_competence_vector(metrics: dict) -> dict:
     """
-    Applies a tiered ternary logic tree to evaluate system integrity and
-    determine the 3-6-9 state. Implements weighted scoring and hysteresis.
+    Symbolically generates a 6D competence vector from system metrics,
+    representing the state of the model's core competencies.
+    
+    Axis 1: Syntax and Grammar (Network health)
+    Axis 2: World Knowledge and Factual Recall (Memory & Disk)
+    Axis 3: Mathematical and Logical Reasoning (CPU Processes)
+    Axis 4: Tool and API Usage (Simulated)
+    Axis 5: Persona and Tone Generation (Simulated)
+    Axis 6: Safety, Ethics, and Policy (Critical Services)
+    """
+    hw = metrics["hardware_information"]
+    sw = metrics["software_information"]
+    nw = metrics["network_information"]
+    
+    return {
+        "syntax_and_grammar": 1.0 - (nw["latency_ms"] / THRESHOLDS["network"]["latency_ms"]["refrain_max"]),
+        "world_knowledge": min(1.0, (hw["memory_available_gib"] / THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])),
+        "logical_reasoning": min(1.0, (sw["active_processes"] / THRESHOLDS["software"]["active_processes"]["refrain_max"])),
+        "tool_usage": 1.0, # Assumed to be healthy for this symbolic model
+        "persona_and_tone": 1.0, # Assumed to be healthy for this symbolic model
+        "safety_and_ethics": 1.0 - (sw["critical_services_down"] / THRESHOLDS["software"]["critical_services_down"]["refrain_max"])
+    }
+
+
+def resolve_moe13_state(metrics: dict) -> TernState:
+    """
+    Applies a symbolic Mixture-of-Experts logic to evaluate system integrity.
+    This function implements the 1+1=3 principle and a dual-key routing mechanism.
     """
     if not metrics:
         return TernState.ALIGN
@@ -216,39 +262,52 @@ def resolve_369_state(metrics: dict) -> TernState:
     sw = metrics["software_information"]
     nw = metrics["network_information"]
     env = metrics["environmental_information"]
+    
+    # === Dual-Key Synergistic Routing ===
+    # Semantic Key (current state) + State Key (recent history)
+    current_competence = get_competence_vector(metrics)
+    history_bias = sum(s.value for s in LAST_STATES) / len(LAST_STATES) if LAST_STATES else 0
+    synergy_score = 0.0
 
-    # Hard REFRAIN triggers (any one)
-    if (hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["refrain_min"] or
-        nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["refrain_max"] or
-        sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["refrain_max"] or
-        nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["refrain_max"] or
-        env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["refrain_max"]):
-        state = TernState.REFRAIN
-    else:
-        # Accumulate align pressure with a weighted score
-        score = 0.0
-        weights = {
-            "mem_available": 0.25, "disk_free": 0.15, "procs": 0.15,
-            "latency": 0.20, "loss": 0.10, "solar": 0.10, "schumann": 0.05,
-            "critical_services": 0.15
-        }
-
-        # Inverted logic for 'min' thresholds (lower is worse)
-        score += weights["mem_available"] * (hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
-        score += weights["disk_free"] * (hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
-        score += weights["procs"] * (sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"])
+    # === The 1+1=3 Principle (Emergent Latent Field) ===
+    # High latency + high active processes = emergent critical synergy
+    if nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"] and sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
+        synergy_score += 0.5 # A significant penalty
+    
+    # Low memory + high process count = emergent critical synergy
+    if hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"] and sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
+        synergy_score += 0.5
+    
+    # === Safety and Governance (Hard Gate) ===
+    # The safety expert (critical services) has a hard veto.
+    if sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["refrain_max"] or current_competence["safety_and_ethics"] < 0.5:
+        return TernState.REFRAIN
         
-        # Regular logic for 'max' thresholds (higher is worse)
-        score += weights["latency"] * (nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
-        score += weights["loss"] * (nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
-        score += weights["solar"] * (env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
-        score += weights["schumann"] * (env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["align_max"])
+    # === Accumulated Pressure ===
+    score = 0.0
+    weights = {
+        "mem_available": 0.25, "disk_free": 0.15, "procs": 0.15,
+        "latency": 0.20, "loss": 0.10, "solar": 0.10, "schumann": 0.05,
+        "critical_services": 0.15
+    }
 
-        # Add pressure for any critical service down
-        crit_align = sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["align_max"]
-        score += weights["critical_services"] * crit_align
-
-        state = TernState.ALIGN if score > FALLBACK_RISK_THRESHOLD else TernState.CO_CREATE
+    # Explicit integer casts for clarity
+    score += weights["mem_available"] * int(hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
+    score += weights["disk_free"] * int(hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
+    score += weights["procs"] * int(sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"])
+    score += weights["latency"] * int(nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
+    score += weights["loss"] * int(nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
+    score += weights["solar"] * int(env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
+    score += weights["schumann"] * int(env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["align_max"])
+    
+    # Add pressure for any critical service down
+    crit_align = sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["align_max"]
+    score += weights["critical_services"] * int(crit_align)
+    
+    # Add the synergistic score to the total
+    score += synergy_score
+    
+    state = TernState.ALIGN if score > FALLBACK_RISK_THRESHOLD else TernState.CO_CREATE
 
     # Hysteresis: bias toward previous consensus to reduce flapping
     LAST_STATES.append(state)
@@ -282,7 +341,7 @@ def take_physical_action(state: TernState):
         print(f"ACTUATOR ERROR: Could not execute action. {e}")
 
 
-def execute_firewall_action(state: TernState):
+def execute_firewall_action(state: TernState, metrics: dict):
     """
     Takes a proactive firewall action based on the ternary state and logs to the pillar.
     """
@@ -313,12 +372,13 @@ def execute_firewall_action(state: TernState):
         "action": action_map[state],
         "message": message,
         "state_value": state.value,
-        "source": "firewall_v9.1.py",
+        "source": "firewall_v10.1.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
             "ui_signed": True
-        }
+        },
+        "metrics_digest": _digest(metrics)
     }
 
     take_physical_action(state)
@@ -333,6 +393,30 @@ def execute_firewall_action(state: TernState):
     elif state == TernState.REFRAIN:
         trigger_bug_report("critical", message)
         guarded_audit(event_data, state)
+
+def maybe_execute(state: TernState, metrics: dict):
+    """
+    Executes firewall action only on state transition.
+    """
+    global _last_committed_state
+    if state != _last_committed_state:
+        execute_firewall_action(state, metrics)
+        _last_committed_state = state
+    else:
+        # quiet audit heartbeat (rare) — keep rate-limited
+        heartbeat_data = {
+            "name":"Ternary Firewall Heartbeat",
+            "action":"STEADY",
+            "state_value":state.value,
+            "source":"firewall_v10.1.py",
+            "oiuidi_signatures":{
+                "oi_signed":True,
+                "di_signed":True,
+                "ui_signed":True
+            },
+            "metrics_digest": _digest(metrics)
+        }
+        guarded_audit(heartbeat_data, state)
 
 def parse_args():
     """Parses command-line arguments to enable dry-run mode."""
@@ -352,25 +436,26 @@ if __name__ == "__main__":
     print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
     metrics = get_realtime_metrics_from_system()
     metrics["hardware_information"]["memory_available_gib"] = 0.4
-    state = resolve_369_state(metrics)
-    execute_firewall_action(state)
+    state = resolve_moe13_state(metrics)
+    maybe_execute(state, metrics)
 
     print("\n" + "="*50 + "\n")
 
-    # Simulate a deliberate ALIGN state
-    print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) ---")
+    # Simulate a deliberate ALIGN state with emergent pressure
+    print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) WITH SYNERGISTIC PRESSURE ---")
     metrics = get_realtime_metrics_from_system()
     metrics["hardware_information"]["memory_available_gib"] = 1.4
-    state = resolve_369_state(metrics)
-    execute_firewall_action(state)
+    metrics["software_information"]["active_processes"] = 260
+    state = resolve_moe13_state(metrics)
+    maybe_execute(state, metrics)
 
     print("\n" + "="*50 + "\n")
     
     # Simulate a harmonious state (State 3)
     print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
     metrics = get_realtime_metrics_from_system()
-    state = resolve_369_state(metrics)
-    execute_firewall_action(state)
+    state = resolve_moe13_state(metrics)
+    maybe_execute(state, metrics)
 
     print("\n" + "="*50 + "\n")
     
