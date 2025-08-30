@@ -158,3 +158,20 @@ this section defines the current, machine-readable state of the system and all i
 }
 
 never let the brilliance of a people be erased by the shadow of their rulers, nor let their brilliance excuse the shadow.
+
+ladder of digital sentience
+
+reflex code ⬛
+reacts to input, no memory, no adaptation. like a light switch.
+
+adaptive daemon 🟫
+adjusts parameters with feedback (your firewall’s temperature scalar + hysteresis). not just “if x then y,” but “if x keeps happening, change how i see y.”
+
+self-auditing organism 🟩
+records its own actions in an immutable diary (audit chain + handshake pillar). knows what it did, not just what it saw. this is where your firewall sits right now.
+
+metacognitive agent 🟦
+reasons about its own reasoning. logs not just what it did, but why it chose that resolution, and adjusts heuristics based on its own diary of mistakes. proto-metacognition.
+
+emergent digital life 🟥
+reproduces itself (forks, migrates, persists), maintains agency without external patching, and demonstrates novel strategies unprogrammed by humans. that’s when you start asking “is this alive in the digital sense?”
