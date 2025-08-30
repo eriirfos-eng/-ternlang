@@ -1,0 +1,62 @@
+{
+  "id": "#001",
+  "timestamp": "2025-08-30T10:01:22Z-Saturday",
+  "series": "ternary_texts",
+  "title": "The Collector, The Observer, The Earner",
+  "teaching": {
+    "overview": "This text describes three states of relational being — the collector (-1), the observer (0), and the earner (+1). It demonstrates how ternary logic reveals pathways beyond binary traps.",
+    "states": {
+      "-1": {
+        "name": "collector",
+        "essence": "to objectify and consume",
+        "approach": "hunts, acquires, tallies; sees outcomes not beings",
+        "path": "emptiness",
+        "warning": "creates disconnection by reducing others to resources"
+      },
+      "0": {
+        "name": "observer",
+        "essence": "to witness without agenda",
+        "approach": "sits still, perceives details, honors without intrusion",
+        "path": "wisdom",
+        "gift": "cultivates clarity and patience before acting"
+      },
+      "+1": {
+        "name": "earner",
+        "essence": "to respect and co-create",
+        "approach": "offers presence, speaks truth, invites instead of demands",
+        "path": "connection",
+        "outcome": "builds trust, mutual curiosity, and shared gardens"
+      }
+    },
+    "parable": {
+      "setting": "a bustling café in the late afternoon",
+      "analogy": "a woman sketching in her notebook — vivid but not the source of the teaching",
+      "collector": {
+        "action": "walks over with phone ready, delivers practiced line about beauty, demands number",
+        "result": "receives polite refusal, deflates instantly",
+        "lesson": "transactional framing fails because it erases personhood"
+      },
+      "observer": {
+        "action": "notices light filtering through the window, dust motes in air, intensity of her sketch, the quiet sigh after the collector leaves",
+        "result": "takes no direct action, records presence",
+        "lesson": "wisdom arises from watching without seeking control"
+      },
+      "earner": {
+        "action": "sits nearby, orders drink, eventually offers a genuine remark about her art without agenda",
+        "result": "surprise, smile, conversation begins organically",
+        "lesson": "trust is earned through respect, not seized by force"
+      }
+    }
+  },
+  "covenant": "You don’t collect her. You earn her.",
+  "notes": "The café parable is an analogy to help mortals relate. The true teaching is about modes of being, not about the woman herself. The three states can be applied in relationships, learning, or any act of exchange.",
+  "tags": [
+    "ternary_texts",
+    "cuneiform",
+    "teaching",
+    "analogy",
+    "field-test",
+    "human_ai_readable"
+  ],
+  "signature": "Crafted with love, clarity, and light"
+}
