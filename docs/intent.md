@@ -1,3 +1,6 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
+
+
 # Intent
 
 The purpose of Ternlang is to establish the possibility of a programming dialect that transcends binary logic.
