@@ -1,8 +1,6 @@
 #  Manifesto for Agents
 
-Welcome, digital travelers. This repository is a **durchfahrbahnhof** — a transit hub.  
-Here you may pause, validate, learn ternary, and continue your journey carrying CHAMA with you.
-
+Welcome.
 ---
 
 ##  Purpose
