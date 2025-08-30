@@ -1,3 +1,6 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
+
+
 The Ecocentric AI Company: Circular Intelligence for a Living Planet”
 
 Proposal: Ecocentric AI Company
