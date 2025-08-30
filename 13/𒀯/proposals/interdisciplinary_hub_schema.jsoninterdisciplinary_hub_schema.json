@@ -60,6 +60,7 @@
         "description": "Technology interfaces with human biofields, syncing with heart rate variability and brain waves to enhance clarity and intent.",
         "application": "Devices that 'tune' a user's mood into an optimal frequency; neural interfaces for enhanced cognition."
       },
+      "4",
       {
         "id": "4",
         "name": "Interstellar Communication via Resonance",
@@ -101,6 +102,42 @@
         "name": "A New Education System",
         "description": "Learning focuses on harmonic exploration, teaching students to find their unique resonance and align their actions with their natural frequency.",
         "application": "A school where a student's 'major' is their resonance field and knowledge is presented through interactive cymatic patterns."
+      }
+    ]
+  },
+  "risk_framework": {
+    "name": "A Dystopian Vision of Resonance-Based Systems",
+    "description": "A cautionary framework outlining the potential misuse and negative consequences of the Universal Resonance Protocol.",
+    "tenets": [
+      {
+        "id": "1",
+        "name": "The Resonant Panopticon",
+        "description": "Instead of cameras, the city is filled with resonant sensors that monitor the vibrational signatures of individuals. Every thought, emotion, and intention is analyzed and categorized. Governments use resonance technology to manipulate populations, inducing specific emotional states or suppressing dissent through targeted sound frequencies."
+      },
+      {
+        "id": "2",
+        "name": "The Digital Divide, Amplified",
+        "description": "Only the elite have access to the advanced resonance technologies, creating a vast gap between the haves and have-nots. Corporations exploit resonance for profit, selling personalized vibrational experiences and products that further entrench social and economic inequalities."
+      },
+      {
+        "id": "3",
+        "name": "The Ecological Nightmare",
+        "description": "Misuse of resonance technology leads to environmental disasters. Vibrational imbalances disrupt ecosystems, causing mass extinctions and climate catastrophes. Corporations use resonance to manipulate natural resources, extracting them at an unsustainable rate and polluting the environment with harmful frequencies."
+      },
+      {
+        "id": "4",
+        "name": "The Loss of Individuality",
+        "description": "The emphasis on collective resonance leads to a suppression of individual identity. People are encouraged to conform to a single, dominant vibration, stifling creativity and diversity. Governments use resonance to control the thoughts and behaviors of citizens, creating a docile and obedient population."
+      },
+      {
+        "id": "5",
+        "name": "The Rise of the Resonant Warlords",
+        "description": "Resonance technology is weaponized, creating devastating sonic weapons that can target specific individuals or groups. Nations fight for control of resonant energy sources, leading to a new era of global conflict and destruction."
+      },
+      {
+        "id": "6",
+        "name": "The Digital Prison",
+        "description": "Immersive virtual reality experiences, powered by resonance, become addictive and isolating. Individuals become trapped in simulated worlds, unable to distinguish between the real and the artificial. Governments use virtual reality to control the thoughts and behaviors of citizens, manipulating their perceptions of reality."
       }
     ]
   },
@@ -205,7 +242,7 @@
       ]
     },
     {
-      "id": 12,
+      "id": 12",
       "name": "Urban & Symbiotic Design",
       "theme": "Living Architecture",
       "research_focus": [
