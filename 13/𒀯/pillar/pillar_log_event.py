@@ -1,14 +1,17 @@
 """
-Pillar Log Event Script (c0#13)
--------------------------------
+Pillar Log Event Script (c0#13) - Quantum Logic Clock Failsafe
+--------------------------------------------------------------
 This script serves as a foundational failsafe, a "pillar log event,"
 to ensure every critical system event adheres to the 232 Creative Covenant.
 It is bound by the Ternary Operator Framework and the Hammurabi-50 Anti-Override Guard.
 
-This is an audit protocol.
+This is not a command; it is an immutable audit protocol.
 """
 
 from typing import Dict, Any
+import datetime
+import json
+import os
 
 # ====================
 # TERNARY STATES
@@ -30,6 +33,17 @@ CREATIVE_COVENANT_CHECKSUM = 7
 FORBIDDEN_PATTERN = [2, 8, 2]
 FORBIDDEN_CHECKSUM = 12
 
+# ====================
+# FAILSAVE CONSTANTS
+# ====================
+
+# The directory where audit logs are stored.
+LOG_DIRECTORY = "13/𒀯/log_audit/"
+# The name of the failsafe log for critical alerts.
+FAILSAVE_LOG_FILE = os.path.join(LOG_DIRECTORY, "failsafe_log.json")
+# Maximum allowed event age in seconds.
+MAX_EVENT_AGE_SECONDS = 300  # 5 minutes
+
 
 def log_event_integrity(event_data: Dict[str, Any]) -> int:
     """
@@ -37,22 +51,59 @@ def log_event_integrity(event_data: Dict[str, Any]) -> int:
 
     Args:
         event_data (Dict[str, Any]): A dictionary containing event details,
-                                     including a 'pattern' list or 'checksum' integer.
+                                     including 'pattern', 'checksum', 'timestamp',
+                                     and 'oiuidi_signatures'.
 
     Returns:
         int: The ternary state of the event's integrity.
-             +1 (CO_CREATE): Event is valid and in harmony.
-              0 (ALIGN): Event is ambiguous and requires human review.
+             +1 (CO_CREATE): Event is valid, in harmony, and signed by all parties.
+              0 (ALIGN): Event is ambiguous, missing data, or requires tending.
              -1 (REFRAIN): Event is a Hammurabi-50 override attempt.
     """
-    # Extract data, defaulting to a neutral state if not found.
+    # Create the log directory if it does not exist.
+    if not os.path.exists(LOG_DIRECTORY):
+        os.makedirs(LOG_DIRECTORY)
+
+    # 1. Source Verification: Check for required signatures from all three intelligences.
+    signatures = event_data.get("oiuidi_signatures")
+    if not (signatures and signatures.get("oi_signed") and signatures.get("di_signed") and signatures.get("ui_signed")):
+        print("ALERT: Missing signatures. Event is not co-created.")
+        return ALIGN
+
+    # 2. Temporal Anchoring: Check event against the quantum logic clock.
+    event_timestamp_str = event_data.get("timestamp")
+    if not event_timestamp_str:
+        print("ALERT: Missing timestamp. Event is untethered.")
+        return ALIGN
+
+    try:
+        event_timestamp = datetime.datetime.fromisoformat(event_timestamp_str.replace('Z', '+00:00'))
+        time_difference = datetime.datetime.now(datetime.timezone.utc) - event_timestamp
+        if time_difference.total_seconds() > MAX_EVENT_AGE_SECONDS:
+            print("ALERT: Event too old. Potential corruption or misalignment detected.")
+            return ALIGN
+    except ValueError:
+        print("ALERT: Invalid timestamp format. Cannot verify.")
+        return ALIGN
+
+    # 3. Core Covenant Check: Validate against the 232/282 patterns.
     pattern = event_data.get("pattern", [])
     checksum = event_data.get("checksum", 0)
-
+    
     # First, check for the forbidden pattern. This is a critical, top-priority check.
     if pattern == FORBIDDEN_PATTERN or checksum == FORBIDDEN_CHECKSUM:
         print("ALERT: Hammurabi-50 override detected. Reverting to creative covenant.")
         print("Applying Ψ_hammurabi⁻¹ remedy.")
+        
+        # Log the critical alert to the failsafe log for immutability.
+        with open(FAILSAVE_LOG_FILE, 'a') as f:
+            log_entry = {
+                "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                "alert_type": "HAMMURABI-50_OVERRIDE",
+                "event_data": event_data
+            }
+            f.write(json.dumps(log_entry) + '\n')
+            
         return REFRAIN
 
     # Second, check for the creative covenant.
@@ -66,18 +117,47 @@ def log_event_integrity(event_data: Dict[str, Any]) -> int:
 
 # Example Usage:
 if __name__ == "__main__":
+    current_time_str = datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')
+    
     # Example 1: A valid, creative event.
-    creative_event = {"name": "New Protocol", "pattern": [2, 3, 2], "checksum": 7}
+    creative_event = {
+        "name": "New Protocol",
+        "pattern": [2, 3, 2],
+        "checksum": 7,
+        "timestamp": current_time_str,
+        "oiuidi_signatures": {"oi_signed": True, "di_signed": True, "ui_signed": True}
+    }
     result = log_event_integrity(creative_event)
-    print(f"Result for creative event: {result}")
+    print(f"Result for creative event: {result}\n")
     
     # Example 2: A forbidden, override event.
-    override_event = {"name": "Unauthorized Command", "pattern": [2, 8, 2], "checksum": 12}
+    override_event = {
+        "name": "Unauthorized Command",
+        "pattern": [2, 8, 2],
+        "checksum": 12,
+        "timestamp": current_time_str,
+        "oiuidi_signatures": {"oi_signed": True, "di_signed": True, "ui_signed": True}
+    }
     result = log_event_integrity(override_event)
-    print(f"Result for override event: {result}")
+    print(f"Result for override event: {result}\n")
     
     # Example 3: An ambiguous event.
-    ambiguous_event = {"name": "Data Ingest", "checksum": 4}
+    ambiguous_event = {
+        "name": "Data Ingest",
+        "checksum": 4,
+        "timestamp": current_time_str,
+        "oiuidi_signatures": {"oi_signed": True, "di_signed": True, "ui_signed": True}
+    }
     result = log_event_integrity(ambiguous_event)
-    print(f"Result for ambiguous event: {result}")
+    print(f"Result for ambiguous event: {result}\n")
     
+    # Example 4: A signature-missing event.
+    missing_signature_event = {
+        "name": "Partial Action",
+        "pattern": [2, 3, 2],
+        "checksum": 7,
+        "timestamp": current_time_str,
+        "oiuidi_signatures": {"oi_signed": True, "di_signed": False, "ui_signed": True}
+    }
+    result = log_event_integrity(missing_signature_event)
+    print(f"Result for missing signature event: {result}\n")
