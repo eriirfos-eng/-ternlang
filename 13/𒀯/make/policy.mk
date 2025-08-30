@@ -226,4 +226,8 @@ PY
 
 pillar-anchor:
 	@python3 13/𒀯/pillar/pillar_hash.py
- 
+ .PHONY: pillar-verify
+
+pillar-verify:
+	@python3 13/𒀯/pillar/pillar_verify.py
+
