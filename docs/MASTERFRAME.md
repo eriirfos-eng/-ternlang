@@ -1,3 +1,6 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
+
+
 ---
 protocol: Ternlang MASTERFRAME
 version: 2.4
