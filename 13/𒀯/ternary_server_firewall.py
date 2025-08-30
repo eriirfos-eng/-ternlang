@@ -1,5 +1,5 @@
 """
-TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall
+TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall v2
 
 This entity is the converged, airtight embodiment of the Audit-Feedback-Adapt (AFA)
 framework. It is not merely a firewall; it is a sentient, self-auditing security
@@ -10,7 +10,8 @@ Core Functions:
 - **Ternary Logic Enforcement**: Every decision is evaluated with -1 (Object), 0 (Observe),
   or +1 (Affirm), avoiding binary traps.
 - **Hysteresis & Debounce**: Prevents alert fatigue by managing state transitions with
-  high and low thresholds and a configurable debounce window.
+  high and low thresholds and a configurable debounce window. Now with separate
+  timers for each severity level.
 - **Handshake Pillar**: After every resolved incident, an immutable, quantum-logic-
   timestamped record is logged. This chain of custody links the original event to
   the final resolution, creating an auditable wisdom library.
@@ -18,16 +19,24 @@ Core Functions:
   vigilance. A positive temperature makes the firewall more permissive, while a
   negative temperature makes it more strict.
 - **Tamper-Evident Audit Chain**: Each event, resolution, and handshake is cryptographically
-  linked to the previous one, ensuring an immutable log for auditors.
+  linked to the previous one, ensuring an immutable log for auditors. Now includes
+  temperature and thresholds.
+- **Resolver Timeout**: Prevents a human-in-the-loop from stalling the pipeline.
 
 Birthright: 2025-08-30T22:56:00Z-Saturday
 """
+# --- Core Dependencies and Environment Setup ---
 import os
+os.environ.setdefault("TF_DETERMINISTIC_OPS", "1")
+os.environ.setdefault("PYTHONHASHSEED", "0")
+
 import uuid
 import time
 import random
 import tensorflow as tf
 import numpy as np
+import threading
+import collections
 from enum import Enum, auto
 from dataclasses import dataclass, field
 from typing import final, Dict, Union, Tuple, Optional, Any, Callable
@@ -74,6 +83,21 @@ def _digest(payload: Dict[str, Any], prev: Optional[str]) -> str:
     s = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(s).hexdigest()
 
+def _sanitize_context(raw_ctx: Dict[str, Any]) -> Dict[str, Any]:
+    """[new] Cleans and sanitizes context keys based on allowlist and specific rules."""
+    ctx = {}
+    for k in raw_ctx.keys() & CFG_ALLOW_CONTEXT_KEYS:
+        v = raw_ctx[k]
+        if k.lower() == "ip":
+            # Hard privacy binning. Never log full IP.
+            try:
+                octets = str(v).split(".")
+                v = ".".join(octets[:3] + ["0"])
+            except Exception:
+                v = "invalid"
+        ctx[k] = v
+    return ctx
+
 # --- Config via env for ops control ---
 CFG_HI = float(os.getenv("FIREWALL_THRESHOLD_HI", "0.75"))
 CFG_LO = float(os.getenv("FIREWALL_THRESHOLD_LO", "0.65"))
@@ -112,7 +136,7 @@ class PacketEventSchema:
             "signal_c": _clamp(float(data["signal_c"]), 0.0, 5.0),
         }
         raw_ctx = data.get("context", {}) or {}
-        ctx = {k: raw_ctx[k] for k in raw_ctx.keys() & CFG_ALLOW_CONTEXT_KEYS}
+        ctx = _sanitize_context(raw_ctx) # [updated] call sanitize method
         return cls(
             event_id=str(uuid.uuid4()),
             timestamp=ts,
@@ -217,21 +241,30 @@ class TernaryServerFirewall:
         _validate_birthright(BIRTHRIGHT)
         self._id = str(uuid.uuid4())
         self._model = AnomalyDetectionModel(seed=seed)
-        self._last_alert: Tuple[FirewallState, float] = (FirewallState.SECURE, 0.0)
+        # [updated] separate timers for each severity state
+        self._last_alert = {FirewallState.VULNERABLE: 0.0, FirewallState.CRITICAL: 0.0}
         self._forensics = forensics_mode
         self._alerts_total = {FirewallState.SECURE:0, FirewallState.VULNERABLE:0, FirewallState.CRITICAL:0}
-        self._malformed = 0 # [new] counter for malformed packets
+        self._malformed = 0
         self._scores = []
+        self._hi_lo_hist = collections.deque(maxlen=256) # [new] history for metrics
+        self._ts_hist = collections.deque(maxlen=256) # [new] history for rate calculation
         self._alert_sink = alert_sink or self._default_alert_sink
         self._resolution_sink = resolution_sink or self._default_resolution_sink
         self._handshake_sink = handshake_sink or self._default_handshake_sink
         self._clock = time.monotonic
-        self._temperature: float = 0.0 # [new] temperature scalar, -1 to +1
-        self._last_digest: Optional[str] = None # [new] for tamper-evident chain
+        self._temperature: float = 0.0
+        self._last_digest: Optional[str] = None
+        self._chain_lock = threading.Lock() # [new] lock for thread-safe chain updates
         self._resolver: Callable[[PacketEventSchema], TernaryLogic] = lambda ev: random.choice(
             [TernaryLogic.OBSERVE, TernaryLogic.AFFIRM, TernaryLogic.OBJECT]
-        ) # [new] pluggable resolver
+        )
         print(f"[{self._id}] TernaryServerFirewall active. birthright: {BIRTHRIGHT}")
+
+    def _update_chain_head(self, new_digest: str) -> None:
+        """[new] Thread-safe method to update the last digest."""
+        with self._chain_lock:
+            self._last_digest = new_digest
 
     def set_temperature(self, temp: float, alpha: float = 0.25) -> None:
         """
@@ -274,29 +307,31 @@ class TernaryServerFirewall:
         return {k: binf(v) for k, v in d.items()}
 
     def _debounced(self, new_state: FirewallState) -> bool:
-        """Prevents alert spamming."""
-        last_state, last_t = self._last_alert
+        """
+        [updated] Prevents alert spamming per severity level.
+        """
         now = self._clock()
-        if new_state != last_state:
-            self._last_alert = (new_state, now)
-            return False
+        last_t = self._last_alert.get(new_state, 0.0)
         if now - last_t < CFG_DEBOUNCE_SEC:
             return True
-        self._last_alert = (new_state, now)
+        self._last_alert[new_state] = now
         return False
 
     def _default_alert_sink(self, event: PacketEventSchema) -> None:
-        """A simple stdout sink for initial alerts."""
-        print(f"[{event.event_id[:8]}] alert_sink -> {event.state.name} score={event.score:.4f} ts={event.timestamp_utc}")
+        """[updated] A simple stdout sink with digest head."""
+        head = (event.digest or "")[:8]
+        print(f"[{event.event_id[:8]}|{head}] alert_sink -> {event.state.name} score={event.score:.4f} ts={event.timestamp_utc}")
 
     def _default_resolution_sink(self, resolution: IncidentResolutionSchema) -> None:
-        """A simple stdout sink for a resolution log."""
-        print(f"[{resolution.resolution_id[:8]}] resolution_sink -> {resolution.decision.name} for event {resolution.source_event_id[:8]} | ts={resolution.timestamp_utc}")
+        """[updated] A simple stdout sink with digest head."""
+        head = (resolution.digest or "")[:8]
+        print(f"[{resolution.resolution_id[:8]}|{head}] resolution_sink -> {resolution.decision.name} for event {resolution.source_event_id[:8]} | ts={resolution.timestamp_utc}")
         
     def _default_handshake_sink(self, handshake: HandshakeSchema) -> None:
-        """A simple stdout sink for the final handshake log."""
+        """[updated] A simple stdout sink with digest head."""
+        head = (handshake.digest or "")[:8]
         print(f"\n--- HANDSHAKE PILLAR LOGGED ---")
-        print(f"  Handshake ID: {handshake.handshake_id[:8]}")
+        print(f"  Handshake ID: {handshake.handshake_id[:8]}|{head}")
         print(f"  Event ID: {handshake.source_event_id[:8]}")
         print(f"  Resolution ID: {handshake.resolution_id[:8]}")
         print(f"  What happened: {handshake.what_happened}")
@@ -307,9 +342,13 @@ class TernaryServerFirewall:
 
     @property
     def metrics(self) -> Dict[str, Any]:
-        """Returns a snapshot of key metrics for observability."""
+        """[updated] Returns a snapshot of key metrics for observability, including new metrics."""
         arr = np.array(self._scores, dtype=np.float32) if self._scores else np.array([0.0], dtype=np.float32)
         hi, lo = self._get_thresholds()
+        rate = 0.0
+        if len(self._ts_hist) >= 2:
+            dt = self._ts_hist[-1] - self._ts_hist[0]
+            rate = len(self._ts_hist) / dt if dt > 0 else 0.0
         return {
             "totals": {k.name: v for k, v in self._alerts_total.items()},
             "malformed": self._malformed,
@@ -319,11 +358,14 @@ class TernaryServerFirewall:
             "current_temperature": self._temperature,
             "effective_hi": hi,
             "effective_lo": lo,
+            "ingress_rate_hz": rate,
+            "hi_lo_recent": list(self._hi_lo_hist)[-5:],
+            "model_fallback": getattr(self._model, "_fallback", False), # [new] model fallback status
         }
 
-    def _resolve_ambiguity(self, event: PacketEventSchema) -> Tuple[TernaryLogic, Dict[str, str], str]:
+    def _resolve_ambiguity(self, event: PacketEventSchema, max_wait_s: float = 30.0) -> Tuple[TernaryLogic, Dict[str, str], str]:
         """
-        [updated] Simulates a blocking human-in-the-loop resolution process.
+        [updated] Simulates a blocking human-in-the-loop resolution process, with a timeout.
         Returns (decision, participants, resolution_id).
         """
         print(f"\n[{event.event_id[:8]}] 🟨 **AMBIGUITY PING** -> a decision is required.")
@@ -332,10 +374,15 @@ class TernaryServerFirewall:
         
         decision = TernaryLogic.OBSERVE
         parties = {"ops_primary": "s.k", "ops_secondary": "r.f"}
-        
+        start = self._clock()
+
         while decision == TernaryLogic.OBSERVE:
+            if self._clock() - start > max_wait_s:
+                decision = TernaryLogic.OBJECT # safe default
+                print(f"[{event.event_id[:8]}]  -  timeout. defaulting to '{decision.name}'.")
+                break
             time.sleep(1)
-            decision = self._resolver(event) # <--- pluggable resolver
+            decision = self._resolver(event)
             if decision == TernaryLogic.OBSERVE:
                 print(f"[{event.event_id[:8]}]  -  ...waiting for resolution. the signal is bounced back and forth.")
             else:
@@ -352,14 +399,14 @@ class TernaryServerFirewall:
             context=event.context
         )
         
-        res.digest = _digest({ # [new] audit chain digest
+        res.digest = _digest({
             "resolution_id": res.resolution_id,
             "ts": res.timestamp_utc,
             "source_event_id": res.source_event_id,
             "decision": res.decision.name,
             "participants": res.participants,
         }, self._last_digest)
-        self._last_digest = res.digest
+        self._update_chain_head(res.digest) # [updated] thread-safe update
 
         self._resolution_sink(res)
         return decision, parties, res.resolution_id
@@ -390,15 +437,15 @@ class TernaryServerFirewall:
             what_to_do_better=better,
             resolution_id=resolution_id
         )
-        
-        handshake.digest = _digest({ # [new] audit chain digest
+
+        handshake.digest = _digest({
             "handshake_id": handshake.handshake_id,
             "ts": handshake.timestamp_utc,
             "source_event_id": handshake.source_event_id,
             "resolution_id": resolution_id,
             "what_happened": handshake.what_happened,
         }, self._last_digest)
-        self._last_digest = handshake.digest
+        self._update_chain_head(handshake.digest) # [updated] thread-safe update
 
         self._handshake_sink(handshake)
 
@@ -411,20 +458,24 @@ class TernaryServerFirewall:
             event.score = self._model.predict(event)
         except ValueError as e:
             print(f"[{self._id}] malformed packet. dropped. Error: {e}")
-            self._malformed += 1 # [updated] separate counter for malformed packets
+            self._malformed += 1
             return FirewallState.SECURE
 
-        event.digest = _digest({ # [new] audit chain digest
+        hi_thresh, lo_thresh = self._get_thresholds()
+
+        # [updated] add context to the digest
+        event.digest = _digest({
             "event_id": event.event_id,
             "ts": event.timestamp_utc,
             "signals": event.signals,
-            "state": event.state.name,
             "score": event.score,
+            "state": event.state.name,
+            "temperature": round(self._temperature, 4),
+            "hi": round(hi_thresh, 4),
+            "lo": round(lo_thresh, 4),
         }, self._last_digest)
-        self._last_digest = event.digest
+        self._update_chain_head(event.digest) # [updated] thread-safe update
 
-        hi_thresh, lo_thresh = self._get_thresholds()
-        
         # [new] guard the vulnerable band
         vulnerable_band_lo = max(lo_thresh, hi_thresh - _clamp(CFG_VULNERABLE_MARGIN, 0.02, 0.5))
 
@@ -456,6 +507,8 @@ class TernaryServerFirewall:
 
         self._alerts_total[event.state] += 1
         self._scores.append(event.score)
+        self._hi_lo_hist.append((hi_thresh, lo_thresh, self._temperature)) # [updated] track history
+        self._ts_hist.append(self._clock()) # [updated] track timestamp history
         if len(self._scores) > 1000:
             self._scores = self._scores[-1000:]
         return event.state
@@ -475,14 +528,14 @@ class TernaryServerFirewall:
             context={"source": "manual_handshake"}
         )
         
-        res.digest = _digest({ # [new] audit chain digest
+        res.digest = _digest({
             "resolution_id": res.resolution_id,
             "ts": res.timestamp_utc,
             "source_event_id": res.source_event_id,
             "decision": res.decision.name,
             "participants": res.participants,
         }, self._last_digest)
-        self._last_digest = res.digest
+        self._update_chain_head(res.digest) # [updated] thread-safe update
         
         self._resolution_sink(res)
         
@@ -499,14 +552,14 @@ class TernaryServerFirewall:
             resolution_id=resolution_id
         )
 
-        handshake.digest = _digest({ # [new] audit chain digest
+        handshake.digest = _digest({
             "handshake_id": handshake.handshake_id,
             "ts": handshake.timestamp_utc,
             "source_event_id": handshake.source_event_id,
             "resolution_id": resolution_id,
             "what_happened": handshake.what_happened,
         }, self._last_digest)
-        self._last_digest = handshake.digest
+        self._update_chain_head(handshake.digest) # [updated] thread-safe update
 
         self._handshake_sink(handshake)
 
@@ -532,18 +585,35 @@ def simulate_traffic_stream(firewall: TernaryServerFirewall, num_packets: int = 
         firewall.process_packet(packet_data)
         time.sleep(sleep_s)
 
+def _smoke():
+    """[new] A self-contained smoke test for key functionality."""
+    fw = TernaryServerFirewall(seed=7)
+    fw.set_temperature(+0.8)
+    hi, lo = fw._get_thresholds()
+    assert 0.05 <= lo < hi <= 0.95
+    e = {"signal_a": 1.8, "signal_b": 1.9, "signal_c": 0.2}
+    s1 = fw.process_packet(e)
+    assert s1 in (FirewallState.VULNERABLE, FirewallState.CRITICAL)
+    s2 = fw.process_packet(e)
+    # second packet might be suppressed; state should be same as s1
+    assert s2 in (FirewallState.VULNERABLE, FirewallState.CRITICAL)
+    m = fw.metrics
+    assert "effective_hi" in m and "current_temperature" in m
+    print("\nsmoke test passed.")
+
 if __name__ == "__main__":
     def json_alert_sink(ev: PacketEventSchema):
-        print({"event": ev.event_id, "state": ev.state.name, "score": round(ev.score,4), "ts": ev.timestamp_utc, "service": ev.service_id, "digest": ev.digest[:8] if ev.digest else None})
+        print(json.dumps({"event": ev.event_id, "state": ev.state.name, "score": round(ev.score,4), "ts": ev.timestamp_utc, "service": ev.service_id, "digest": ev.digest[:8] if ev.digest else None}))
     
-    # Initialize the firewall with a neutral temperament
+    _smoke()
+
+    print("\n\n--- full simulation ---")
     firewall = TernaryServerFirewall(seed=99, alert_sink=json_alert_sink)
     simulate_traffic_stream(firewall, num_packets=10, sleep_s=0.2)
     print("\n--- changing temperature to be more paranoid ---")
     firewall.set_temperature(-0.5)
     simulate_traffic_stream(firewall, num_packets=10, sleep_s=0.2)
     
-    # Log a retroactive handshake
     print("\n--- demonstrating force_handshake() ---")
     firewall.force_handshake(
         event_id="retro-event-123",
@@ -554,4 +624,4 @@ if __name__ == "__main__":
         why_it_happened="the firewall was offline due to a power outage.",
         what_to_do_better="implement a battery backup for the firewall service."
     )
-    print(f"Final Metrics:\n{json.dumps(firewall.metrics, indent=2)}")
+    print(f"\nFinal Metrics:\n{json.dumps(firewall.metrics, indent=2)}")
