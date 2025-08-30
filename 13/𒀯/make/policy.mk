@@ -175,3 +175,22 @@ ternary quitrit state (epoch mod 3)
 
 immutable append to the pillar))
 
+.PHONY: pillar-peek
+
+pillar-peek:
+	@test -f '13/𒀯/pillar/pillar_events.jsonl' || (echo "no pillar events yet"; exit 1)
+	@python3 - <<'PY'
+import json, pathlib
+p = pathlib.Path("13/𒀯/pillar/pillar_events.jsonl")
+for line in p.read_text(encoding="utf-8").splitlines():
+    try:
+        e = json.loads(line)
+    except Exception:
+        continue
+    print(f"[{e['utc']} | epoch={e['epoch']} | q={e['quitrit']}]")
+    print(f"  entity: {e['entity']}")
+    print(f"  incident: {e['incident']}")
+    print(f"  summary: {e['summary']}")
+    print(f"  status: {e['status']}")
+    print()
+PY
