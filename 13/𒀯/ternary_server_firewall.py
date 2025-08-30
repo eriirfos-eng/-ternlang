@@ -20,7 +20,8 @@ Core Functions:
   negative temperature makes it more strict.
 - **Tamper-Evident Audit Chain**: Each event, resolution, and handshake is cryptographically
   linked to the previous one, ensuring an immutable log for auditors. The chain is now
-  HMAC-signed with atomic updates.
+  HMAC-signed with atomic updates. The chain also now logs the final classification
+  decision separately from the raw event data.
 - **Resolver Timeout**: Prevents a human-in-the-loop from stalling the pipeline.
 - **Agent Log**: A digital diary for the agent's reflections and insights.
 
@@ -638,6 +639,19 @@ class TernaryServerFirewall:
             event.state = FirewallState.VULNERABLE
         else:
             event.state = FirewallState.SECURE
+        
+        # [new] audit trail upgrade: add a "classify" record after the state is set
+        class_meta = {
+            "event_id": event.event_id,
+            "ts": event.timestamp_utc,
+            "final_state": event.state.name,
+            "score": event.score,
+            "temperature": round(self._temperature, 4),
+            "hi": round(hi_thresh, 4),
+            "lo": round(lo_thresh, 4),
+        }
+        self._append_chain("classify", class_meta)
+
 
         masked = self._masked(event.signals)
         
@@ -664,8 +678,9 @@ class TernaryServerFirewall:
         if len(self._scores) > 1000:
             self._scores = self._scores[-1000:]
         return event.state
-
-    def force_handshake(self, event_id: str, decision: TernaryLogic, participants: Dict[str, str], happened: str, learned: str, why: str, better: str):
+        
+    def force_handshake(self, event_id: str, decision: TernaryLogic, participants: Dict[str, str],
+                        happened: str, learned: str, why: str, better: str):
         """Allows a handshake to be logged retroactively or for testing."""
         if not self._handshake_budget_ok():
             print(f"[budget] manual handshake for {event_id[:8]} suppressed. budget exhausted.")
@@ -673,7 +688,8 @@ class TernaryServerFirewall:
 
         ts, ts_utc = self._safe_now()
         resolution_id = str(uuid.uuid4())
-        
+
+        # resolution -> chain
         res_meta = {
             "resolution_id": resolution_id,
             "ts": ts_utc,
@@ -696,9 +712,9 @@ class TernaryServerFirewall:
             resolver_source="manual_override",
             digest=res_digest
         )
-
         self._resolution_sink(res)
-        
+
+        # handshake -> chain
         hs_meta = {
             "handshake_id": str(uuid.uuid4()),
             "ts": ts_utc,
@@ -761,8 +777,9 @@ def _fuzz(n=200):
                 with open(CFG_CHAIN_PATH, "r", encoding="utf-8") as f:
                     for line in f:
                         rec = json.loads(line)
+                        prev_disp = (prev_digest or "∅")[:8]
                         if rec["prev"] != prev_digest:
-                            print(f"[error] chain continuity broken! {rec['digest'][:8]} does not link to {prev_digest[:8]}")
+                            print(f"[error] chain continuity broken! {rec['digest'][:8]} does not link to {prev_disp}")
                             raise AssertionError("Chain continuity broken")
                         prev_digest = rec["digest"]
             print(f"chain continuity validated. {len(digests)} records.")
@@ -799,11 +816,12 @@ def simulate_traffic_stream(firewall: TernaryServerFirewall, num_packets: int = 
         }
         if i == 5:
             print("\ninjecting a synthetic security threat...")
-            packet_data["signal_a"] = 1.8
-            packet_data["signal_b"] = 1.9
-            packet_data["signal_c"] = 0.2
-            packet_data["context"] = {"source": "threat_harness", "reason": "synthetic_violation", "ip": "1.1.1.1", "email": "test@example.com"}
-        print(f"\nprocessing packet {i+1}: {firewall._masked(packet_data)}")
+            packet_data.update({
+                "signal_a": 1.8, "signal_b": 1.9, "signal_c": 0.2,
+                "context": {"source": "threat_harness", "reason": "synthetic_violation", "ip": "1.1.1.1", "email": "test@example.com"}
+            })
+        sig_preview = {k: packet_data[k] for k in ("signal_a","signal_b","signal_c") if k in packet_data}
+        print(f"\nprocessing packet {i+1}: {firewall._masked(sig_preview)}")
         firewall.process_packet(packet_data)
         time.sleep(sleep_s)
 
