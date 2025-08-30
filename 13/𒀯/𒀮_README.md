@@ -178,4 +178,56 @@ fix(c0): patch Hammurabi-50 override
 
 **timestamp:** 2025-08-29T17:32:44Z — friday
 
+{
+ "system_details_report": {
+   "host_info": {
+     "host_enabled": true,
+     "location": "elisabetinergasse 25, top 10, graz, austria, skybase",
+     "latitude": null,
+     "longitude": null,
+     "elevation_m": 355,
+     "time": "01:07 (UTC -12:00)",
+     "email": "eriirfos@gmail.com",
+     "linkedin_profile": "in/simeon-kepp",
+     "linkedin_company": "company/rfi-irfos",
+     "osf_url": "https://osf.io/rzvyg",
+     "orcid_url": "https://orcid.org/0009-0009-6922-9552"
+   },
+   "operational_protocol": {
+     "name": "human in the loop fallback",
+     "status": "active and canonical",
+     "ternary_logic_roles": {
+       "oi": "human (simeon)",
+       "di": "host machine (hp zbook 15)",
+       "ui": "canonical repository (github)"
+     },
+     "primary_source": "https://github.com/eriirfos-eng/-ternlang/tree/459cfd0860183e6321e2e0371c614c50dc447db8/13/%F0%92%80%AF",
+     "version_control_system": "git",
+     "database_role": "real-time state observation (not canonical source)"
+   },
+   "report_details": {
+     "date_generated": "2025-08-30 13:07:27"
+   },
+   "hardware_information": {
+     "hardware_model": "Hewlett-Packard HP ZBook 15",
+     "memory_gib": 8.0,
+     "processor": "Intel® Core™ i7-4800MQ × 8",
+     "graphics": "Intel® HD Graphics 4600 (HSW GT2)",
+     "graphics_1": "NVE6",
+     "disk_capacity_gb": 256.1
+   },
+   "software_information": {
+     "firmware_version": "L70 Ver. 01.47",
+     "os_name": "Ubuntu 24.04.2 LTS",
+     "os_build": null,
+     "os_type": "64-bit",
+     "gnome_version": 46,
+     "windowing_system": "Wayland",
+     "kernel_version": "Linux 6.14.0-27-generic"
+   }
+ }
+}
+
+2025-08-30T13:20:14Z-Saturday
+
 
