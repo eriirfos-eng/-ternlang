@@ -1,3 +1,4 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
 
 The Ternlang Framework: A Post-Binary Architectural Analysis for Autonomous Intelligence
 
