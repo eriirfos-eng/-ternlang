@@ -1,0 +1,21 @@
+Governance (ternary)
+
+Propose: author submits tablet + PoL.
+
+Observe: reviewer checks schema + meaning.
+
+Decide: merge requires a triad quorum (3 maintainers or 1+2 delegates) to avoid binary deadlocks.
+
+Suggested atomic commits (ready to run)
+git add schema.json scripts/validate.js Makefile \
+  CONTRIBUTING.md TRANSLATION_GUIDE.md glossary/core_terms.json \
+  CODE_OF_CONDUCT.md GOVERNANCE.md RELEASES.md CHANGELOG.md \
+  .github/PULL_REQUEST_TEMPLATE.md
+git commit -m "framework: add schema, validator, i18n pipeline, governance, and contribution OS" \
+  -m "Stable Structure v1.0 for international growth. PoL baked in. i18n ready. CI-ready."
+
+Optional follow-ups
+
+add CI (GitHub Actions) to run make validate on every PR.
+
+add MIRRORING.md + snapshot script if you want long-horizon permanence.
