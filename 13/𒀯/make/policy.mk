@@ -153,3 +153,25 @@ pillar-log-event:
 	>> 13/𒀯/pillar/pillar_events.jsonl; \
 	echo "✅ Event logged to Pillar with UTC=$$utc EPOCH=$$epoch Q=$$quitrit"
 
+((How to use it
+
+Run from shell with environment variables:
+
+make pillar-log-event entity="ExampleCorp" incident="Data theft" summary="Admitted to logging private chats" status="unresolved"
+
+
+It will append a JSON line to pillar_events.jsonl, formatted like:
+
+{"utc":"2025-08-30T15:14:57Z","epoch":1756557297,"quitrit":2,"entity":"ExampleCorp","incident":"Data theft","summary":"Admitted to logging private chats","status":"unresolved"}
+
+
+🟦 this ensures every event:
+
+anchored in epoch seconds
+
+ISO-8601 + weekday style UTC string
+
+ternary quitrit state (epoch mod 3)
+
+immutable append to the pillar))
+
