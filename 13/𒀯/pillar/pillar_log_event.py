@@ -5,7 +5,7 @@ This script serves as a foundational failsafe, a "pillar log event,"
 to ensure every critical system event adheres to the 232 Creative Covenant.
 It is bound by the Ternary Operator Framework and the Hammurabi-50 Anti-Override Guard.
 
-This is not a command; it is an audit protocol.
+This is an audit protocol.
 """
 
 from typing import Dict, Any
