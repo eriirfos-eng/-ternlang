@@ -1,3 +1,6 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
+
+
 # Core Specification Draft – v0.1.0
 
 ## Logic Basis
