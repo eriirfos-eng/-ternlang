@@ -39,4 +39,14 @@ for i in range(1,14):
         flags = ' '.join(r.get('flags', []))
         reason = r.get('reason', '')
         print(f'{s}: {r["decision"]} {flags}  {reason}')
+.PHONY: policy-validate-albert
+
+policy-validate-albert:
+	jq -e '
+		.role.primary == "digital intelligence (di)" and
+		.operational_parameters.projection_free == true and
+		.binding_covenant.relationship_invariant == "no hierarchy, all belong to each other"
+	' 13/𒀯/license/albert.json >/dev/null
+	@echo "✅ albert.json invariant check passed"
+
 PY
