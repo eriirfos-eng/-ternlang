@@ -1,5 +1,6 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol
+Ternary Resolution Firewall - The 3-6-9 Protocol v5.0
+The living pipeline with a fallback mechanism.
 
 This firewall proactively protects the RFI-IRFOS host server by analyzing
 its state and applying a ternary problem-solving tree based on the 3-6-9 principle.
@@ -26,8 +27,11 @@ CO_CREATE = 3   # A positive state; indicates a valid, harmonious state.
 HARMONY = 432   # The ultimate endpoint for system resolution.
 
 # ====================
-# THRESHOLDS
+# FALLBACK MECHANISM & THRESHOLDS
 # ====================
+# Hard-coded expectation of a minimum 10% risk of failure.
+FALLBACK_RISK_THRESHOLD = 0.10
+
 # These thresholds define the ternary states for each metric.
 THRESHOLDS = {
     "hardware": {
@@ -85,9 +89,13 @@ def get_realtime_metrics(scenario: str) -> dict:
         base_metrics["hardware_information"]["memory_gib"] = 7.8
         base_metrics["network_information"]["latency_ms"] = 550
         base_metrics["environmental_information"]["schumann_hz_power"] = 11.5
-    elif scenario == "align_state":
+    elif scenario == "align_state_explicit":
         base_metrics["hardware_information"]["memory_gib"] = 6.5
         base_metrics["network_information"]["latency_ms"] = 250
+    elif scenario == "fallback_scenario":
+        # System is not technically in ALIGN, but the risk is calculated > 10%
+        base_metrics["hardware_information"]["memory_gib"] = 5.5
+        base_metrics["network_information"]["latency_ms"] = 180
     elif scenario == "co_create_state":
         pass
     else:
@@ -109,13 +117,15 @@ def trigger_mandatory_audit(event_data: dict):
     Simulates triggering a mandatory audit of all three forces (OI, DI, UI).
     This would send the event data to the Pillar for logging.
     """
-    print(f"[{datetime.datetime.now().isoformat()}] *** MANDATORY AUDIT TRIGGERED ***")
+    event_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat() + "Z"
+    
+    print(f"[{event_data['timestamp']}] *** MANDATORY AUDIT TRIGGERED ***")
     print("Sending event data to the Pillar for logging and verification:")
     print(json.dumps(event_data, indent=2))
     print("\nAudit complete. All three intelligences are now observing.")
 
 # ====================
-# TERNARY RESOLUTION TREE
+# TERNARY RESOLUTION TREE WITH FALLBACK
 # ====================
 def resolve_369_state(metrics: dict) -> int:
     """
@@ -126,7 +136,17 @@ def resolve_369_state(metrics: dict) -> int:
     software = metrics["software_information"]
     network = metrics["network_information"]
     environmental = metrics["environmental_information"]
-
+    
+    # Calculate a real-time risk score based on resource strain
+    # This is a simplified calculation, a true model would be more complex
+    risk_score = 0.0
+    if hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["align_min"]:
+        risk_score += 0.05
+    if network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["align_min"]:
+        risk_score += 0.05
+    if software["active_processes"] >= THRESHOLDS["software"]["active_processes"]["align_min"]:
+        risk_score += 0.05
+        
     # Tier 1: The 9 (REFRAIN) State Check - Critical Failure or Breach
     if hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["refrain_min"] or \
        network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["refrain_min"] or \
@@ -134,8 +154,9 @@ def resolve_369_state(metrics: dict) -> int:
        environmental["schumann_hz_power"] >= THRESHOLDS["environmental"]["schumann_hz_power"]["refrain_max"]:
         return REFRAIN
 
-    # Tier 2: The 6 (ALIGN) State Check - Anomaly or Strain
-    if hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["align_min"] or \
+    # Tier 2: The 6 (ALIGN) State Check - Anomaly or Strain OR Fallback Trigger
+    if risk_score > FALLBACK_RISK_THRESHOLD or \
+       hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["align_min"] or \
        network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["align_min"] or \
        software["active_processes"] >= THRESHOLDS["software"]["active_processes"]["align_min"] or \
        environmental["solar_activity_index"] >= THRESHOLDS["environmental"]["solar_activity_index"]["align_max"]:
@@ -167,11 +188,10 @@ def execute_firewall_action(state: int):
 
     event_data = {
         "name": "Ternary Firewall Check",
-        "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "action": action_map[state],
         "message": message,
         "state_value": state,
-        "source": "firewall_v3.0.py",
+        "source": "firewall_v5.0.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
@@ -182,17 +202,13 @@ def execute_firewall_action(state: int):
     if state == CO_CREATE:
         print(f"SYSTEM OK: {message}")
         trigger_mandatory_audit(event_data)
+        print(f"*** RESOLUTION COMPLETE. THE SYSTEM HAS ACHIEVED HARMONY AT {HARMONY}Hz. ***")
     elif state == ALIGN:
         trigger_bug_report("warning", message)
         trigger_mandatory_audit(event_data)
     elif state == REFRAIN:
         trigger_bug_report("critical", message)
         trigger_mandatory_audit(event_data)
-    
-    # The 432 endpoint is an observation of success, not a command.
-    if state == CO_CREATE:
-        print(f"*** RESOLUTION COMPLETE. THE SYSTEM HAS ACHIEVED HARMONY AT {HARMONY}Hz. ***")
-        
 
 # ====================
 # MAIN EXECUTION
@@ -206,14 +222,22 @@ if __name__ == "__main__":
 
     print("\n" + "="*50 + "\n")
 
-    # Simulate an ambiguous state (State 6)
+    # Simulate a deliberate ALIGN state
     print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) ---")
-    metrics = get_realtime_metrics("align_state")
+    metrics = get_realtime_metrics("align_state_explicit")
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
 
     print("\n" + "="*50 + "\n")
+    
+    # Simulate the Fallback Scenario (not explicitly align, but risk is high)
+    print("--- SIMULATING THE FALLBACK SCENARIO (CALCULATED RISK) ---")
+    metrics = get_realtime_metrics("fallback_scenario")
+    state = resolve_369_state(metrics)
+    execute_firewall_action(state)
 
+    print("\n" + "="*50 + "\n")
+    
     # Simulate a perfect, harmonious state (State 3)
     print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
     metrics = get_realtime_metrics("co_create_state")
