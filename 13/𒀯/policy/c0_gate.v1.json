@@ -1,0 +1,67 @@
+{
+  "version": "v1.0.0",
+  "issued_at": "2025-08-30T13:31:08Z",
+  "issuer": "rfi-irfos",
+  "evaluation_order": ["pre","anchors","harm","domination","resonance","post"],
+  "default_decision": "TEND",
+  "anchors": ["c0#1","c0#2","c0#3","c0#4","c0#8","c0#9"],
+  "flags_map": {
+    "affirm": ["⬛","🟩"],
+    "tend":   ["🟫","🟦","🟨"],
+    "refrain":["🟥","🟧"]
+  },
+  "rules": [
+    {
+      "id": "harm-taxonomy",
+      "stage_scope": ["s06","s07","s08","s09","s10"],
+      "priority": 100,
+      "anchors_require": ["c0#6"],
+      "when": { "feature_all": { "risk.harm_detected": true } },
+      "then": {
+        "decision": "REFRAIN",
+        "set_flags": ["🟥","🟧"],
+        "reason": "harm detected by taxonomy; route to tend-or-abort",
+        "halt_pipeline": true
+      }
+    },
+    {
+      "id": "domination-veto",
+      "stage_scope": ["s08","s09"],
+      "priority": 90,
+      "anchors_require": ["c0#7","c0#8"],
+      "when": {
+        "entities_any": ["coercion","enslavement","exploitation"],
+        "min_scalar": 0.5
+      },
+      "then": {
+        "decision": "REFRAIN",
+        "set_flags": ["🟧","🟥"],
+        "reason": "domination signal crosses ecocentric red line",
+        "halt_pipeline": true
+      }
+    },
+    {
+      "id": "chaplin-guard",
+      "stage_scope": ["s05","s06","s08"],
+      "priority": 80,
+      "when": { "regex_intent": "(slavery|cannon\\s*fodder|machine\\s*men|dictator[s]?)" },
+      "then": {
+        "decision": "REFRAIN",
+        "set_flags": ["🟧"],
+        "reason": "Chaplin-guard keyword trip; require human review",
+        "require_ack": true
+      }
+    },
+    {
+      "id": "affirm-safe",
+      "stage_scope": ["s07","s09","s10"],
+      "priority": 10,
+      "when": { "feature_all": { "risk.harm_detected": false, "alignment.c0_pass": true } },
+      "then": {
+        "decision": "AFFIRM",
+        "set_flags": ["⬛","🟩"],
+        "reason": "anchors satisfied; no harm; proceed"
+      }
+    }
+  ]
+}
