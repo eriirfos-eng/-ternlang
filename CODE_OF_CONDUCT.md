@@ -1,3 +1,6 @@
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
+
+
 # Contributor Covenant Code of Conduct
 
 ## Our Pledge
