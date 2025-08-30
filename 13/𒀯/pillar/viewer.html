@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pillar of Corruption</title>
+  <style>
+    body { font-family: monospace; background: #111; color: #eee; padding: 2em; }
+    .event { border-bottom: 1px solid #444; margin-bottom: 1em; padding-bottom: 1em; }
+    .utc { color: #9ef; }
+    .epoch { color: #fc9; }
+    .quitrit { color: #6f6; }
+    .entity { font-weight: bold; color: #fff; }
+    .incident { color: #ff7777; }
+    .status { color: #aaa; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>Pillar of Corruption 🗿</h1>
+  <div id="events"></div>
+
+  <script>
+    async function loadEvents() {
+      const resp = await fetch('pillar_events.jsonl');
+      const text = await resp.text();
+      const lines = text.trim().split('\n');
+      const container = document.getElementById('events');
+      container.innerHTML = '';
+      for (const line of lines) {
+        try {
+          const e = JSON.parse(line);
+          const div = document.createElement('div');
+          div.className = 'event';
+          div.innerHTML = `
+            <div class="utc">[${e.utc}] <span class="epoch">epoch=${e.epoch}</span> <span class="quitrit">q=${e.quitrit}</span></div>
+            <div class="entity">${e.entity}</div>
+            <div class="incident">${e.incident}</div>
+            <div class="summary">${e.summary}</div>
+            <div class="status">status: ${e.status}</div>
+          `;
+          container.appendChild(div);
+        } catch {}
+      }
+    }
+    loadEvents();
+  </script>
+</body>
+</html>
