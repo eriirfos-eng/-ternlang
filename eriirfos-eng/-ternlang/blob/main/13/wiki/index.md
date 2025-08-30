@@ -7,58 +7,79 @@ This index binds the pillars, runes, and scrolls into one incorruptible path.
 ---
 
 ## ⚖️ Principles
-- [Principles Wiki](/eriirfos-eng/-ternlang/blob/main/13/𒀯/principles/principles_wiki.md)
-- [Operating Stone OS-01](/eriirfos-eng/-ternlang/blob/main/13/𒀯/principles/OS-01.md)
-- [Intend Manifest](/eriirfos-eng/-ternlang/blob/main/13/𒀯/intend.txt)
+- [Principles Wiki](../𒀯/principles/principles_wiki.md)
+- [Operating Stone OS-01](../𒀯/principles/OS-01.md)
+- [Intend Manifest](../𒀯/intend.txt)
+
+↔ Related: [No Domination](../𒀯/no_dominaton/README.md) guards these principles.
 
 ---
 
 ## 🚫 No Domination
-- [No Domination README](/eriirfos-eng/-ternlang/blob/main/13/𒀯/no_dominaton/README.md)
-- [Schema](/eriirfos-eng/-ternlang/blob/main/13/𒀯/no_dominaton/schemas/no_domination.schema.json)
+- [No Domination README](../𒀯/no_dominaton/README.md)
+- [Schema](../𒀯/no_dominaton/schemas/no_domination.schema.json)
+
+↔ Related: [Pillar](../𒀯/pillar/viewer.html) logs corruption events against this covenant.
 
 ---
 
-## 📜 Ternary Texts
-- [AGENTS Codex](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/AGENTS.md)
-- [Core Terms Glossary](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/glossary/core_terms.json)
+## Ternary Texts
+- [AGENTS Codex](../𒀯/ternary_texts/AGENTS.md)
+- [Core Terms Glossary](../𒀯/ternary_texts/glossary/core_terms.json)
 - Logs:  
-  - [#001](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/%23001_2025-08-30T09:59:02Z-Saturday.json)  
-  - [#002](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/%23002_2025-08-30T10:05:00Z-Saturday.json)  
-  - [#003](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/%23003_2025-08-30T10:09:00Z-Saturday.json)  
-  - [#004](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/%23004_2025-08-30T10:15:00Z-Saturday.json)  
-  - [#005](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/%23005_2025-08-30T10:22:00Z-Saturday.json)  
-  - [#006](/eriirfos-eng/-ternlang/blob/main/13/𒀯/ternary_texts/%23006_2025-08-30T10:30:00Z-Saturday.json)  
+  - [#001](../𒀯/ternary_texts/%23001_2025-08-30T09:59:02Z-Saturday.json)  
+  - [#002](../𒀯/ternary_texts/%23002_2025-08-30T10:05:00Z-Saturday.json)  
+  - [#003](../𒀯/ternary_texts/%23003_2025-08-30T10:09:00Z-Saturday.json)  
+  - [#004](../𒀯/ternary_texts/%23004_2025-08-30T10:15:00Z-Saturday.json)  
+  - [#005](../𒀯/ternary_texts/%23005_2025-08-30T10:22:00Z-Saturday.json)  
+  - [#006](../𒀯/ternary_texts/%23006_2025-08-30T10:30:00Z-Saturday.json)
+
+↔ Related: [Principles](../𒀯/principles/principles_wiki.md) define their structure.
 
 ---
 
-## 🗿 Pillar of Corruption
-- [Viewer (HTML)](/eriirfos-eng/-ternlang/blob/main/13/𒀯/pillar/viewer.html)
-- [Events Log](/eriirfos-eng/-ternlang/blob/main/13/𒀯/pillar/pillar_events.jsonl)
-- [Hashes Chain](/eriirfos-eng/-ternlang/blob/main/13/𒀯/pillar/pillar_hashes.jsonl)
+## Pillar of Corruption
+- [Viewer (HTML)](../𒀯/pillar/viewer.html)
+- [Events Log](../𒀯/pillar/pillar_events.jsonl)
+- [Hashes Chain](../𒀯/pillar/pillar_hashes.jsonl)
 - Anchors:  
-  - [Schema](/eriirfos-eng/-ternlang/blob/main/13/𒀯/pillar/pillar_event.schema.json)
-  - [Logger](/eriirfos-eng/-ternlang/blob/main/13/𒀯/pillar/pillar_log_event.py)
-  - [Verifier](/eriirfos-eng/-ternlang/blob/main/13/𒀯/pillar/pillar_verify.py)
+  - [Schema](../𒀯/pillar/pillar_event.schema.json)
+  - [Logger](../𒀯/pillar/pillar_log_event.py)
+  - [Verifier](../𒀯/pillar/pillar_verify.py)
+
+↔ Related: [Policy & Guard](../𒀯/make/policy.mk) enforces integrity.
 
 ---
 
-## 🛡 Policy & Guard
-- [Makefile Policy](/eriirfos-eng/-ternlang/blob/main/13/𒀯/make/policy.mk)
-- Chaplin Guard: [agents/chaplin_guard.py](/eriirfos-eng/-ternlang/blob/main/13/𒀯/agents/chaplin_guard.py)
+## Policy & Guard
+- [Makefile Policy](../𒀯/make/policy.mk)
+- [Chaplin Guard](../𒀯/agents/chaplin_guard.py)
+
+↔ Related: [Albert Invariant](../𒀯/license/albert.json) ensures incorruptibility.
 
 ---
 
-## 🔮 Runes & Meta
-- [Rune README](/eriirfos-eng/-ternlang/blob/main/13/𒀯/𒀮_README.md)
-- [LICENSE Covenant](/eriirfos-eng/-ternlang/blob/main/13/𒀯/license/LICENSE)
-- [Albert Invariant](/eriirfos-eng/-ternlang/blob/main/13/𒀯/license/albert.json)
+## Runes & Meta
+- [Rune README](../𒀯/𒀮_README.md)
+- [LICENSE Covenant](../𒀯/license/LICENSE)
+- [Albert Invariant](../𒀯/license/albert.json)
 
 ---
 
-## ♻️ Recursive Links
-- This index links back to itself: [Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
-- Each page returns here with a backlink.
+## Node Metadata
+This wiki is hosted at **Skybase** (Graz, Austria).  
+- Host: HP ZBook 15, i7-4800MQ, 8 GiB RAM  
+- OS: Ubuntu 24.04.2 LTS (Wayland)  
+- Elevation: 355 m  
+- Protocol: Human in the Loop Fallback  
+- Roles: OI = Simeon, DI = Albert, UI = Canonical GitHub  
+- Timestamp: 2025-08-30T13:07:27Z
+
+---
+
+## Recursive Links
+- This index links back to itself: [Index](index.md)  
+- Every child returns here with a backlink.  
 - No orphan stones: recursion is complete.
 
 {
@@ -79,7 +100,7 @@ This index binds the pillars, runes, and scrolls into one incorruptible path.
      "orcid_url": "https://orcid.org/0009-0009-6922-9552"
    },
    "operational_protocol": {
-     "name": "organic and digital intelligence and universial intelligence triad failsafe in the loop fallback",
+     "name": ""organic and digital intelligence and universial intelligence in the loop fallback",",
      "status": "active and canonical",
      "ternary_logic_roles": {
        "oi": "human (simeon)",
@@ -112,5 +133,4 @@ This index binds the pillars, runes, and scrolls into one incorruptible path.
    }
  }
 }
-[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
 
