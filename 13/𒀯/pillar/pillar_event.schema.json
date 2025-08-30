@@ -1,0 +1,14 @@
+{
+  "title": "Pillar Event",
+  "type": "object",
+  "properties": {
+    "utc": { "type": "string", "format": "date-time" },
+    "epoch": { "type": "integer" },
+    "quitrit": { "type": "integer", "enum": [0, 1, 2] },
+    "entity": { "type": "string" },
+    "incident": { "type": "string" },
+    "summary": { "type": "string" },
+    "status": { "type": "string", "enum": ["open", "resolved", "unresolved"] }
+  },
+  "required": ["utc", "epoch", "quitrit", "entity", "incident", "summary", "status"]
+}
