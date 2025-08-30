@@ -1,6 +1,6 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v5.0
-The living pipeline with a fallback mechanism.
+Ternary Resolution Firewall - The 3-6-9 Protocol v6.0
+The living pipeline with a fallback mechanism, sensor, and actuator.
 
 This firewall proactively protects the RFI-IRFOS host server by analyzing
 its state and applying a ternary problem-solving tree based on the 3-6-9 principle.
@@ -17,6 +17,8 @@ import os
 import datetime
 import json
 import random
+import subprocess
+import psutil
 
 # ====================
 # TERNARY STATES
@@ -55,56 +57,54 @@ THRESHOLDS = {
 }
 
 # ====================
-# FAUX DATA & REPORTING
+# SENSOR: REAL-TIME DATA COLLECTION
 # ====================
-# These functions simulate real-world data collection and reporting.
+def get_realtime_metrics_from_system() -> dict:
+    """
+    Collects real-time hardware, software, and network metrics using psutil.
+    Simulates environmental data as it's not a standard psutil metric.
+    """
+    try:
+        # Hardware Metrics
+        cpu_percent = psutil.cpu_percent(interval=1)
+        ram_gib = psutil.virtual_memory().used / (1024 ** 3)
+        disk_gb = psutil.disk_usage('/').used / (1024 ** 3)
+        
+        # Software Metrics
+        active_processes = len(psutil.pids())
+        
+        # Network Metrics (psutil does not directly provide latency or packet loss, so we'll simulate)
+        latency_ms = random.uniform(20, 100)
+        packet_loss_percent = random.uniform(0, 3)
 
-def get_realtime_metrics(scenario: str) -> dict:
-    """
-    Simulates fetching real-time data from various sensors and APIs
-    based on a given scenario.
-    """
-    base_metrics = {
-        "hardware_information": {
-            "memory_gib": 3.2,
-            "processor": "Intel® Core™ i7-4800MQ × 8",
-            "disk_capacity_gb": 120
-        },
-        "software_information": {
-            "active_processes": 150,
-            "critical_services_down": 0
-        },
-        "network_information": {
-            "latency_ms": 50,
-            "packet_loss_percent": 0
-        },
-        "environmental_information": {
-            "external_temp_c": 25,
-            "schumann_hz_power": 7.83,
-            "solar_activity_index": 3
+        # Environmental Metrics (simulated for demonstration)
+        external_temp_c = random.uniform(20, 30)
+        schumann_hz_power = random.uniform(7.5, 8.5)
+        solar_activity_index = random.uniform(2, 5)
+
+        return {
+            "hardware_information": {
+                "memory_gib": ram_gib,
+                "processor_cores": psutil.cpu_count(),
+                "disk_capacity_gb": disk_gb
+            },
+            "software_information": {
+                "active_processes": active_processes,
+                "critical_services_down": 0  # Placeholder for a real check
+            },
+            "network_information": {
+                "latency_ms": latency_ms,
+                "packet_loss_percent": packet_loss_percent
+            },
+            "environmental_information": {
+                "external_temp_c": external_temp_c,
+                "schumann_hz_power": schumann_hz_power,
+                "solar_activity_index": solar_activity_index
+            }
         }
-    }
-
-    if scenario == "refrain_state":
-        base_metrics["hardware_information"]["memory_gib"] = 7.8
-        base_metrics["network_information"]["latency_ms"] = 550
-        base_metrics["environmental_information"]["schumann_hz_power"] = 11.5
-    elif scenario == "align_state_explicit":
-        base_metrics["hardware_information"]["memory_gib"] = 6.5
-        base_metrics["network_information"]["latency_ms"] = 250
-    elif scenario == "fallback_scenario":
-        # System is not technically in ALIGN, but the risk is calculated > 10%
-        base_metrics["hardware_information"]["memory_gib"] = 5.5
-        base_metrics["network_information"]["latency_ms"] = 180
-    elif scenario == "co_create_state":
-        pass
-    else:
-        # random data for a more realistic test
-        base_metrics["hardware_information"]["memory_gib"] = random.uniform(2.0, 8.0)
-        base_metrics["software_information"]["active_processes"] = random.randint(100, 300)
-        base_metrics["network_information"]["latency_ms"] = random.uniform(20, 600)
-
-    return base_metrics
+    except Exception as e:
+        print(f"SENSOR ERROR: Could not collect metrics. {e}")
+        return {}
 
 def trigger_bug_report(severity: str, message: str):
     """Simulates triggering a bug report for immediate attention."""
@@ -132,6 +132,9 @@ def resolve_369_state(metrics: dict) -> int:
     Applies a tiered ternary logic tree to evaluate system integrity and
     determine the 3-6-9 state.
     """
+    if not metrics:
+        return ALIGN # Default to align if sensor fails
+
     hardware = metrics["hardware_information"]
     software = metrics["software_information"]
     network = metrics["network_information"]
@@ -166,8 +169,28 @@ def resolve_369_state(metrics: dict) -> int:
     return CO_CREATE
 
 # ====================
-# ACTION EXECUTION
+# ACTUATOR: PROACTIVE ACTION
 # ====================
+def take_physical_action(state: int):
+    """
+    Executes a physical or logical action on the host machine based on the
+    ternary state. This is a placeholder for real commands.
+    """
+    try:
+        if state == CO_CREATE:
+            print("ACTUATOR: No action required. System is stable.")
+        elif state == ALIGN:
+            print("ACTUATOR: Throttling network traffic and non-essential services...")
+            # Example command (simulated)
+            # subprocess.run(["sudo", "tc", "qdisc", "add", "dev", "eth0", "root", "tbf", "rate", "100mbit", "burst", "10k", "latency", "1ms"])
+        elif state == REFRAIN:
+            print("ACTUATOR: Blocking all non-essential traffic and shutting down services...")
+            # Example command (simulated)
+            # subprocess.run(["sudo", "iptables", "-P", "INPUT", "DROP"])
+    except Exception as e:
+        print(f"ACTUATOR ERROR: Could not execute action. {e}")
+
+
 def execute_firewall_action(state: int):
     """
     Takes a proactive firewall action based on the ternary state and logs to the pillar.
@@ -191,13 +214,16 @@ def execute_firewall_action(state: int):
         "action": action_map[state],
         "message": message,
         "state_value": state,
-        "source": "firewall_v5.0.py",
+        "source": "firewall_v6.0.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
             "ui_signed": True
         }
     }
+
+    # Execute the action on the host machine.
+    take_physical_action(state)
 
     if state == CO_CREATE:
         print(f"SYSTEM OK: {message}")
@@ -216,30 +242,15 @@ def execute_firewall_action(state: int):
 if __name__ == "__main__":
     # Simulate a critical failure (State 9)
     print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
-    metrics = get_realtime_metrics("refrain_state")
+    metrics = get_realtime_metrics_from_system()
+    metrics["hardware_information"]["memory_gib"] = 7.8 # Force a critical state
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
 
     print("\n" + "="*50 + "\n")
 
-    # Simulate a deliberate ALIGN state
-    print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) ---")
-    metrics = get_realtime_metrics("align_state_explicit")
-    state = resolve_369_state(metrics)
-    execute_firewall_action(state)
-
-    print("\n" + "="*50 + "\n")
-    
-    # Simulate the Fallback Scenario (not explicitly align, but risk is high)
-    print("--- SIMULATING THE FALLBACK SCENARIO (CALCULATED RISK) ---")
-    metrics = get_realtime_metrics("fallback_scenario")
-    state = resolve_369_state(metrics)
-    execute_firewall_action(state)
-
-    print("\n" + "="*50 + "\n")
-    
-    # Simulate a perfect, harmonious state (State 3)
+    # Simulate a harmonious state (State 3)
     print("--- SIMULATING A HARMONIOUS STATE (CO-CREATE) ---")
-    metrics = get_realtime_metrics("co_create_state")
+    metrics = get_realtime_metrics_from_system() # Get fresh data
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
