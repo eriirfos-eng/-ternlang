@@ -1,6 +1,7 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v8.0
-The living pipeline with a fallback mechanism, sensor, actuator, and forgiveness loop.
+Ternary Resolution Firewall - The 3-6-9 Protocol v9.0
+The living pipeline with a fallback mechanism, sensor, actuator, forgiveness loop,
+and a self-correcting logic engine.
 
 This firewall proactively protects the RFI-IRFOS host server by analyzing
 its state and applying a ternary problem-solving tree based on the 3-6-9 principle.
@@ -17,15 +18,20 @@ import os
 import datetime
 import json
 import random
-import subprocess
 import psutil
+from enum import IntEnum
+from pathlib import Path
+from collections import deque
+import time
 
 # ====================
 # TERNARY STATES
 # ====================
-REFRAIN = 9     # A critical state; requires immediate action and blocking.
-ALIGN = 6       # A neutral state; requires observation, throttling, or warning.
-CO_CREATE = 3   # A positive state; indicates a valid, harmonious state.
+class TernState(IntEnum):
+    CO_CREATE = 3
+    ALIGN     = 6
+    REFRAIN   = 9
+
 HARMONY = 432   # The ultimate endpoint for system resolution.
 
 # ====================
@@ -38,11 +44,8 @@ FALLBACK_RISK_THRESHOLD = 0.10
 # NOTE: In a production environment, these should be loaded from a config file.
 THRESHOLDS = {
     "hardware": {
-        # The minimum *available* memory in GiB to be considered in a healthy state.
         "memory_available_gib": {"refrain_min": 0.5, "align_min": 1.5},
-        # The minimum number of processor cores available.
         "processor_cores_available": {"refrain_min": 1, "align_min": 2},
-        # The minimum *free* disk capacity in GiB to be considered healthy.
         "disk_free_gb": {"refrain_min": 5, "align_min": 10}
     },
     "software": {
@@ -60,19 +63,30 @@ THRESHOLDS = {
     }
 }
 
+# Hysteresis buffer to prevent state flapping.
+LAST_STATES = deque(maxlen=5)
+
 # ====================
 # FORGIVENESS PROTOCOL
 # ====================
-FORGIVENESS_LOG_FILE = "forgiveness_log.json"
+FORGIVENESS_LOG_FILE = Path("forgiveness_log.json")
 MAX_FORGIVENESS_OFFERS = 490 # 7x70
 
+def _atomic_write(path: Path, payload: dict):
+    """
+    Safely writes to a file by using a temporary file and then replacing the original.
+    This prevents file corruption during a crash.
+    """
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with open(tmp, "w") as f:
+        json.dump(payload, f)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
 def load_forgiveness_log():
-    """
-    Loads the forgiveness counter from a log file.
-    NOTE: This is vulnerable to race conditions. In production,
-    a file lock or a database with atomic writes should be used.
-    """
-    if os.path.exists(FORGIVENESS_LOG_FILE):
+    """Loads the forgiveness counter from a log file."""
+    if FORGIVENESS_LOG_FILE.exists():
         with open(FORGIVENESS_LOG_FILE, 'r') as f:
             try:
                 return json.load(f)
@@ -81,9 +95,8 @@ def load_forgiveness_log():
     return {"count": 0}
 
 def save_forgiveness_log(data):
-    """Saves the forgiveness counter to a log file."""
-    with open(FORGIVENESS_LOG_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+    """Saves the forgiveness counter to a log file using an atomic write."""
+    _atomic_write(FORGIVENESS_LOG_FILE, data)
 
 def offer_personal_grace():
     """Human-callable function to reset the forgiveness counter."""
@@ -91,11 +104,15 @@ def offer_personal_grace():
     log_data["count"] = 0
     save_forgiveness_log(log_data)
     print("PERSONAL GRACE OFFERED: Forgiveness counter has been reset by human intervention.")
-    return CO_CREATE
+    return TernState.CO_CREATE
 
 # ====================
 # SENSOR & DATA REPORTING
 # ====================
+def utc_now_z():
+    """Returns a correctly formatted ISO 8601 timestamp with Z for UTC."""
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
 def get_realtime_metrics_from_system() -> dict:
     """
     Collects real-time hardware, software, and network metrics using psutil.
@@ -112,8 +129,9 @@ def get_realtime_metrics_from_system() -> dict:
         active_processes = len(psutil.pids())
         
         # Network Metrics
-        latency_ms = random.uniform(20, 100) # Simulating latency
-        packet_loss_percent = random.uniform(0, 3) # Simulating packet loss
+        # NOTE: In a production environment, these should be from real probes.
+        latency_ms = random.uniform(20, 100)
+        packet_loss_percent = random.uniform(0, 3)
 
         # Environmental Metrics (simulated for demonstration)
         external_temp_c = random.uniform(20, 30)
@@ -123,7 +141,7 @@ def get_realtime_metrics_from_system() -> dict:
         return {
             "hardware_information": {
                 "memory_available_gib": ram_available_gib,
-                "processor_cores": processor_cores,
+                "processor_cores_available": processor_cores,
                 "disk_free_gb": disk_free_gb
             },
             "software_information": {
@@ -146,7 +164,7 @@ def get_realtime_metrics_from_system() -> dict:
 
 def trigger_bug_report(severity: str, message: str):
     """Simulates triggering a bug report for immediate attention."""
-    print(f"[{datetime.datetime.now(datetime.timezone.utc).isoformat()}] *** BUG REPORT TRIGGERED ***")
+    print(f"[{utc_now_z()}] *** BUG REPORT TRIGGERED ***")
     print(f"Severity: {severity.upper()}")
     print(f"Message: {message}\n")
 
@@ -155,7 +173,7 @@ def trigger_mandatory_audit(event_data: dict):
     Simulates triggering a mandatory audit of all three forces (OI, DI, UI).
     This would send the event data to the Pillar for logging.
     """
-    event_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    event_data["timestamp"] = utc_now_z()
     
     print(f"[{event_data['timestamp']}] *** MANDATORY AUDIT TRIGGERED ***")
     print("Sending event data to the Pillar for logging and verification:")
@@ -165,86 +183,91 @@ def trigger_mandatory_audit(event_data: dict):
 # ====================
 # TERNARY RESOLUTION TREE WITH FALLBACK
 # ====================
-def resolve_369_state(metrics: dict) -> int:
+def resolve_369_state(metrics: dict) -> TernState:
     """
     Applies a tiered ternary logic tree to evaluate system integrity and
-    determine the 3-6-9 state.
+    determine the 3-6-9 state. Implements weighted scoring and hysteresis.
     """
     if not metrics:
-        return ALIGN
+        return TernState.ALIGN
 
-    hardware = metrics["hardware_information"]
-    software = metrics["software_information"]
-    network = metrics["network_information"]
-    environmental = metrics["environmental_information"]
-    
-    risk_score = 0.0
-    # Inverted logic: lower available resources increase risk
-    if hardware["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"]:
-        risk_score += 0.05
-    if network["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"]:
-        risk_score += 0.05
-    if software["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
-        risk_score += 0.05
-    if network["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"]:
-        risk_score += 0.05
-    if hardware["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"]:
-        risk_score += 0.05
+    hw = metrics["hardware_information"]
+    sw = metrics["software_information"]
+    nw = metrics["network_information"]
+    env = metrics["environmental_information"]
+
+    # Hard REFRAIN triggers (any one)
+    if (hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["refrain_min"] or
+        nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["refrain_max"] or
+        sw["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["refrain_max"] or
+        nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["refrain_max"] or
+        env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["refrain_max"]):
+        state = TernState.REFRAIN
+    else:
+        # Accumulate align pressure with a weighted score
+        score = 0.0
+        weights = {
+            "mem_used": 0.25, "disk_free": 0.15, "procs": 0.15,
+            "latency": 0.20, "loss": 0.10, "solar": 0.10, "schumann": 0.05
+        }
+
+        # Inverted logic for 'min' thresholds
+        score += weights["mem_used"] * (hw["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"])
+        score += weights["disk_free"] * (hw["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"])
+        score += weights["procs"] * (sw["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"])
         
-    # Tier 1: The 9 (REFRAIN) State Check - Critical Failure or Breach
-    if hardware["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["refrain_min"] or \
-       network["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["refrain_max"] or \
-       software["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["refrain_max"] or \
-       network["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["refrain_max"] or \
-       environmental["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["refrain_max"]:
-        return REFRAIN
+        # Regular logic for 'max' thresholds
+        score += weights["latency"] * (nw["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"])
+        score += weights["loss"] * (nw["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"])
+        score += weights["solar"] * (env["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"])
+        score += weights["schumann"] * (env["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["align_max"])
 
-    # Tier 2: The 6 (ALIGN) State Check - Anomaly or Strain OR Fallback Trigger
-    if risk_score > FALLBACK_RISK_THRESHOLD or \
-       hardware["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"] or \
-       network["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"] or \
-       software["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"] or \
-       environmental["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"]:
-        return ALIGN
+        state = TernState.ALIGN if score > FALLBACK_RISK_THRESHOLD else TernState.CO_CREATE
 
-    # Tier 3: The 3 (CO-CREATE) State Check - Harmony
-    return CO_CREATE
+    # Hysteresis: bias toward previous consensus to reduce flapping
+    LAST_STATES.append(state)
+    if len(LAST_STATES) == LAST_STATES.maxlen:
+        consensus = max((LAST_STATES.count(s), s) for s in (TernState.CO_CREATE, TernState.ALIGN, TernState.REFRAIN))[1]
+        return consensus
+    return state
 
 # ====================
 # ACTUATOR: PROACTIVE ACTION
 # ====================
-def take_physical_action(state: int):
+def take_physical_action(state: TernState):
     """
     Executes a physical or logical action on the host machine based on the
-    ternary state. This is a placeholder for real commands.
+    ternary state.
+    NOTE: In a production setting, this function would contain real OS commands
+    to throttle or block traffic. A '--dry-run' flag would be essential.
     """
     try:
-        if state == CO_CREATE:
+        if state == TernState.CO_CREATE:
             print("ACTUATOR: No action required. System is stable.")
-        elif state == ALIGN:
+        elif state == TernState.ALIGN:
             print("ACTUATOR: Throttling network traffic and non-essential services...")
-        elif state == REFRAIN:
+        elif state == TernState.REFRAIN:
             print("ACTUATOR: Blocking all non-essential traffic and shutting down services...")
     except Exception as e:
         print(f"ACTUATOR ERROR: Could not execute action. {e}")
 
 
-def execute_firewall_action(state: int):
+def execute_firewall_action(state: TernState):
     """
     Takes a proactive firewall action based on the ternary state and logs to the pillar.
     """
     action_map = {
-        CO_CREATE: "CO-CREATE",
-        ALIGN: "ALIGN",
-        REFRAIN: "REFRAIN"
+        TernState.CO_CREATE: "CO-CREATE",
+        TernState.ALIGN: "ALIGN",
+        TernState.REFRAIN: "REFRAIN"
     }
 
     message = ""
-    if state == CO_CREATE:
+    if state == TernState.CO_CREATE:
         message = "All services are enabled. System is in a state of creation."
-    elif state == ALIGN:
+    elif state == TernState.ALIGN:
         message = "Initiating throttling protocol for non-essential services. Re-aligning with harmony."
-    elif state == REFRAIN:
+    elif state == TernState.REFRAIN:
         log_data = load_forgiveness_log()
         current_count = log_data.get("count", 0)
         
@@ -260,7 +283,7 @@ def execute_firewall_action(state: int):
         "action": action_map[state],
         "message": message,
         "state_value": state,
-        "source": "firewall_v8.0.py",
+        "source": "firewall_v9.0.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
@@ -270,14 +293,14 @@ def execute_firewall_action(state: int):
 
     take_physical_action(state)
 
-    if state == CO_CREATE:
+    if state == TernState.CO_CREATE:
         print(f"SYSTEM OK: {message}")
         trigger_mandatory_audit(event_data)
         print(f"*** RESOLUTION COMPLETE. THE SYSTEM HAS ACHIEVED HARMONY AT {HARMONY}Hz. ***")
-    elif state == ALIGN:
+    elif state == TernState.ALIGN:
         trigger_bug_report("warning", message)
         trigger_mandatory_audit(event_data)
-    elif state == REFRAIN:
+    elif state == TernState.REFRAIN:
         trigger_bug_report("critical", message)
         trigger_mandatory_audit(event_data)
 
