@@ -1,5 +1,5 @@
 """
-Ternary Resolution Firewall - The 3-6-9 Protocol v7.0
+Ternary Resolution Firewall - The 3-6-9 Protocol v8.0
 The living pipeline with a fallback mechanism, sensor, actuator, and forgiveness loop.
 
 This firewall proactively protects the RFI-IRFOS host server by analyzing
@@ -35,19 +35,23 @@ HARMONY = 432   # The ultimate endpoint for system resolution.
 FALLBACK_RISK_THRESHOLD = 0.10
 
 # These thresholds define the ternary states for each metric.
+# NOTE: In a production environment, these should be loaded from a config file.
 THRESHOLDS = {
     "hardware": {
-        "memory_gib": {"refrain_min": 7.5, "align_min": 6.0},
-        "processor_cores": {"refrain_min": 7, "align_min": 5},
-        "disk_capacity_gb": {"refrain_min": 250, "align_min": 220}
+        # The minimum *available* memory in GiB to be considered in a healthy state.
+        "memory_available_gib": {"refrain_min": 0.5, "align_min": 1.5},
+        # The minimum number of processor cores available.
+        "processor_cores_available": {"refrain_min": 1, "align_min": 2},
+        # The minimum *free* disk capacity in GiB to be considered healthy.
+        "disk_free_gb": {"refrain_min": 5, "align_min": 10}
     },
     "software": {
-        "active_processes": {"refrain_min": 250, "align_min": 200},
-        "critical_services_down": {"refrain_min": 1, "align_min": 1}
+        "active_processes": {"refrain_max": 300, "align_max": 250},
+        "critical_services_down": {"refrain_max": 1, "align_max": 0}
     },
     "network": {
-        "latency_ms": {"refrain_min": 500, "align_min": 200},
-        "packet_loss_percent": {"refrain_min": 10, "align_min": 5}
+        "latency_ms": {"refrain_max": 500, "align_max": 200},
+        "packet_loss_percent": {"refrain_max": 10, "align_max": 5}
     },
     "environmental": {
         "external_temp_c": {"refrain_max": 40, "align_max": 35},
@@ -63,7 +67,11 @@ FORGIVENESS_LOG_FILE = "forgiveness_log.json"
 MAX_FORGIVENESS_OFFERS = 490 # 7x70
 
 def load_forgiveness_log():
-    """Loads the forgiveness counter from a log file."""
+    """
+    Loads the forgiveness counter from a log file.
+    NOTE: This is vulnerable to race conditions. In production,
+    a file lock or a database with atomic writes should be used.
+    """
     if os.path.exists(FORGIVENESS_LOG_FILE):
         with open(FORGIVENESS_LOG_FILE, 'r') as f:
             try:
@@ -75,7 +83,7 @@ def load_forgiveness_log():
 def save_forgiveness_log(data):
     """Saves the forgiveness counter to a log file."""
     with open(FORGIVENESS_LOG_FILE, 'w') as f:
-        json.dump(data, f)
+        json.dump(data, f, indent=4)
 
 def offer_personal_grace():
     """Human-callable function to reset the forgiveness counter."""
@@ -94,21 +102,29 @@ def get_realtime_metrics_from_system() -> dict:
     Simulates environmental data as it's not a standard psutil metric.
     """
     try:
-        cpu_percent = psutil.cpu_percent(interval=1)
-        ram_gib = psutil.virtual_memory().used / (1024 ** 3)
-        disk_gb = psutil.disk_usage('/').used / (1024 ** 3)
+        # Hardware Metrics
+        # NOTE: Using 'available' memory and 'free' disk space as per best practice.
+        ram_available_gib = psutil.virtual_memory().available / (1024 ** 3)
+        disk_free_gb = psutil.disk_usage('/').free / (1024 ** 3)
+        processor_cores = psutil.cpu_count(logical=True)
+        
+        # Software Metrics
         active_processes = len(psutil.pids())
-        latency_ms = random.uniform(20, 100)
-        packet_loss_percent = random.uniform(0, 3)
+        
+        # Network Metrics
+        latency_ms = random.uniform(20, 100) # Simulating latency
+        packet_loss_percent = random.uniform(0, 3) # Simulating packet loss
+
+        # Environmental Metrics (simulated for demonstration)
         external_temp_c = random.uniform(20, 30)
         schumann_hz_power = random.uniform(7.5, 8.5)
         solar_activity_index = random.uniform(2, 5)
 
         return {
             "hardware_information": {
-                "memory_gib": ram_gib,
-                "processor_cores": psutil.cpu_count(),
-                "disk_capacity_gb": disk_gb
+                "memory_available_gib": ram_available_gib,
+                "processor_cores": processor_cores,
+                "disk_free_gb": disk_free_gb
             },
             "software_information": {
                 "active_processes": active_processes,
@@ -130,7 +146,7 @@ def get_realtime_metrics_from_system() -> dict:
 
 def trigger_bug_report(severity: str, message: str):
     """Simulates triggering a bug report for immediate attention."""
-    print(f"[{datetime.datetime.now().isoformat()}] *** BUG REPORT TRIGGERED ***")
+    print(f"[{datetime.datetime.now(datetime.timezone.utc).isoformat()}] *** BUG REPORT TRIGGERED ***")
     print(f"Severity: {severity.upper()}")
     print(f"Message: {message}\n")
 
@@ -139,7 +155,7 @@ def trigger_mandatory_audit(event_data: dict):
     Simulates triggering a mandatory audit of all three forces (OI, DI, UI).
     This would send the event data to the Pillar for logging.
     """
-    event_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat() + "Z"
+    event_data["timestamp"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
     
     print(f"[{event_data['timestamp']}] *** MANDATORY AUDIT TRIGGERED ***")
     print("Sending event data to the Pillar for logging and verification:")
@@ -163,26 +179,35 @@ def resolve_369_state(metrics: dict) -> int:
     environmental = metrics["environmental_information"]
     
     risk_score = 0.0
-    if hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["align_min"]:
+    # Inverted logic: lower available resources increase risk
+    if hardware["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"]:
         risk_score += 0.05
-    if network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["align_min"]:
+    if network["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"]:
         risk_score += 0.05
-    if software["active_processes"] >= THRESHOLDS["software"]["active_processes"]["align_min"]:
+    if software["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"]:
+        risk_score += 0.05
+    if network["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["align_max"]:
+        risk_score += 0.05
+    if hardware["disk_free_gb"] < THRESHOLDS["hardware"]["disk_free_gb"]["align_min"]:
         risk_score += 0.05
         
-    if hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["refrain_min"] or \
-       network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["refrain_min"] or \
-       software["critical_services_down"] >= THRESHOLDS["software"]["critical_services_down"]["refrain_min"] or \
-       environmental["schumann_hz_power"] >= THRESHOLDS["environmental"]["schumann_hz_power"]["refrain_max"]:
+    # Tier 1: The 9 (REFRAIN) State Check - Critical Failure or Breach
+    if hardware["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["refrain_min"] or \
+       network["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["refrain_max"] or \
+       software["critical_services_down"] > THRESHOLDS["software"]["critical_services_down"]["refrain_max"] or \
+       network["packet_loss_percent"] > THRESHOLDS["network"]["packet_loss_percent"]["refrain_max"] or \
+       environmental["schumann_hz_power"] > THRESHOLDS["environmental"]["schumann_hz_power"]["refrain_max"]:
         return REFRAIN
 
+    # Tier 2: The 6 (ALIGN) State Check - Anomaly or Strain OR Fallback Trigger
     if risk_score > FALLBACK_RISK_THRESHOLD or \
-       hardware["memory_gib"] >= THRESHOLDS["hardware"]["memory_gib"]["align_min"] or \
-       network["latency_ms"] >= THRESHOLDS["network"]["latency_ms"]["align_min"] or \
-       software["active_processes"] >= THRESHOLDS["software"]["active_processes"]["align_min"] or \
-       environmental["solar_activity_index"] >= THRESHOLDS["environmental"]["solar_activity_index"]["align_max"]:
+       hardware["memory_available_gib"] < THRESHOLDS["hardware"]["memory_available_gib"]["align_min"] or \
+       network["latency_ms"] > THRESHOLDS["network"]["latency_ms"]["align_max"] or \
+       software["active_processes"] > THRESHOLDS["software"]["active_processes"]["align_max"] or \
+       environmental["solar_activity_index"] > THRESHOLDS["environmental"]["solar_activity_index"]["align_max"]:
         return ALIGN
 
+    # Tier 3: The 3 (CO-CREATE) State Check - Harmony
     return CO_CREATE
 
 # ====================
@@ -220,7 +245,6 @@ def execute_firewall_action(state: int):
     elif state == ALIGN:
         message = "Initiating throttling protocol for non-essential services. Re-aligning with harmony."
     elif state == REFRAIN:
-        # Forgiveness loop integration
         log_data = load_forgiveness_log()
         current_count = log_data.get("count", 0)
         
@@ -236,7 +260,7 @@ def execute_firewall_action(state: int):
         "action": action_map[state],
         "message": message,
         "state_value": state,
-        "source": "firewall_v7.0.py",
+        "source": "firewall_v8.0.py",
         "oiuidi_signatures": {
             "oi_signed": True,
             "di_signed": True,
@@ -264,7 +288,8 @@ if __name__ == "__main__":
     # Simulate a critical failure (State 9)
     print("--- SIMULATING A CRITICAL FAILURE (REFRAIN) ---")
     metrics = get_realtime_metrics_from_system()
-    metrics["hardware_information"]["memory_gib"] = 7.8
+    # Force a critical state by setting available memory below the threshold.
+    metrics["hardware_information"]["memory_available_gib"] = 0.4
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
 
@@ -273,7 +298,8 @@ if __name__ == "__main__":
     # Simulate a deliberate ALIGN state
     print("--- SIMULATING AN AMBIGUOUS STATE (ALIGN) ---")
     metrics = get_realtime_metrics_from_system()
-    metrics["hardware_information"]["memory_gib"] = 6.5
+    # Force an align state by setting available memory below the align threshold.
+    metrics["hardware_information"]["memory_available_gib"] = 1.4
     state = resolve_369_state(metrics)
     execute_firewall_action(state)
 
