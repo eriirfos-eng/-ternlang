@@ -112,4 +112,5 @@ This index binds the pillars, runes, and scrolls into one incorruptible path.
    }
  }
 }
+[← Return to Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
 
