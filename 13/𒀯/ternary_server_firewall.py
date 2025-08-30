@@ -17,6 +17,8 @@ Core Functions:
 - **Temperature Scalar**: A neurosymbolic governor that modulates the firewall's
   vigilance. A positive temperature makes the firewall more permissive, while a
   negative temperature makes it more strict.
+- **Tamper-Evident Audit Chain**: Each event, resolution, and handshake is cryptographically
+  linked to the previous one, ensuring an immutable log for auditors.
 
 Birthright: 2025-08-30T22:56:00Z-Saturday
 """
@@ -30,6 +32,8 @@ from enum import Enum, auto
 from dataclasses import dataclass, field
 from typing import final, Dict, Union, Tuple, Optional, Any, Callable
 from datetime import datetime, timezone
+import hashlib
+import json
 
 # --- Ternary Logic States ---
 class TernaryLogic(Enum):
@@ -64,6 +68,12 @@ def _schema_ok_signals(d: Dict[str, Any]) -> bool:
     """Checks for the presence and correct type of required signals."""
     return all(k in d and isinstance(d[k], (int, float)) for k in ("signal_a","signal_b","signal_c"))
 
+def _digest(payload: Dict[str, Any], prev: Optional[str]) -> str:
+    """Generates a SHA-256 digest for a given payload, chained to the previous digest."""
+    body = {"prev": prev, "payload": payload}
+    s = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(s).hexdigest()
+
 # --- Config via env for ops control ---
 CFG_HI = float(os.getenv("FIREWALL_THRESHOLD_HI", "0.75"))
 CFG_LO = float(os.getenv("FIREWALL_THRESHOLD_LO", "0.65"))
@@ -88,7 +98,8 @@ class PacketEventSchema:
     score: float = 0.0
     context: Optional[Dict[str, Any]] = field(default_factory=dict)
     birthright: str = BIRTHRIGHT
-    version: str = "v0.6"
+    version: str = "v0.7"
+    digest: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any], service_id: str) -> "PacketEventSchema":
@@ -125,7 +136,8 @@ class IncidentResolutionSchema:
     participants: Dict[str, str]
     context: Optional[Dict[str, Any]] = field(default_factory=dict)
     birthright: str = BIRTHRIGHT
-    version: str = "v0.6"
+    version: str = "v0.7"
+    digest: Optional[str] = None
 
 @dataclass
 class HandshakeSchema:
@@ -145,7 +157,8 @@ class HandshakeSchema:
     what_to_do_better: str
     resolution_id: str
     birthright: str = BIRTHRIGHT
-    version: str = "v0.6"
+    version: str = "v0.7"
+    digest: Optional[str] = None
 
 @final
 class AnomalyDetectionModel:
@@ -207,24 +220,44 @@ class TernaryServerFirewall:
         self._last_alert: Tuple[FirewallState, float] = (FirewallState.SECURE, 0.0)
         self._forensics = forensics_mode
         self._alerts_total = {FirewallState.SECURE:0, FirewallState.VULNERABLE:0, FirewallState.CRITICAL:0}
+        self._malformed = 0 # [new] counter for malformed packets
         self._scores = []
         self._alert_sink = alert_sink or self._default_alert_sink
         self._resolution_sink = resolution_sink or self._default_resolution_sink
         self._handshake_sink = handshake_sink or self._default_handshake_sink
         self._clock = time.monotonic
         self._temperature: float = 0.0 # [new] temperature scalar, -1 to +1
+        self._last_digest: Optional[str] = None # [new] for tamper-evident chain
+        self._resolver: Callable[[PacketEventSchema], TernaryLogic] = lambda ev: random.choice(
+            [TernaryLogic.OBSERVE, TernaryLogic.AFFIRM, TernaryLogic.OBJECT]
+        ) # [new] pluggable resolver
         print(f"[{self._id}] TernaryServerFirewall active. birthright: {BIRTHRIGHT}")
 
-    def set_temperature(self, temp: float) -> None:
-        """Sets the neurosymbolic temperature scalar for vigilance modulation."""
-        self._temperature = _clamp(temp, -1.0, 1.0)
-        print(f"[{self._id}] temperature set to {self._temperature:.4f} (new vigilance level).")
+    def set_temperature(self, temp: float, alpha: float = 0.25) -> None:
+        """
+        [updated] Smoothly update the neurosymbolic temperature scalar.
+        alpha∈(0,1]: higher = faster response.
+        """
+        target = _clamp(temp, -1.0, 1.0)
+        self._temperature = (1 - alpha) * self._temperature + alpha * target
+        print(f"[{self._id}] temperature={self._temperature:.4f} (α={alpha:.2f})")
+
+    def set_resolver(self, resolver: Callable[[PacketEventSchema], TernaryLogic]) -> None:
+        """[new] Inject a real decision source (webhook, queue consumer, UI)."""
+        self._resolver = resolver
 
     def _get_thresholds(self) -> Tuple[float, float]:
-        """Modulates thresholds based on the current temperature."""
-        # [new] adjust thresholds based on temperature
-        hi = CFG_HI + (self._temperature * 0.1)
-        lo = CFG_LO + (self._temperature * 0.1)
+        """
+        [updated] Modulate thresholds by temperature, but keep them bounded and ordered.
+        hi, lo ∈ [0,1], and lo <= hi - ε so hysteresis survives.
+        """
+        base_hi, base_lo = CFG_HI, CFG_LO
+        delta = self._temperature * 0.10
+        hi = _clamp(base_hi + delta, 0.05, 0.95)
+        lo = _clamp(base_lo + delta, 0.05, 0.95)
+        eps = 0.02
+        if lo > hi - eps:
+            lo = max(0.05, hi - eps)
         return hi, lo
 
     def _masked(self, d: Dict[str, Union[int, float]]) -> Dict[str, str]:
@@ -276,17 +309,21 @@ class TernaryServerFirewall:
     def metrics(self) -> Dict[str, Any]:
         """Returns a snapshot of key metrics for observability."""
         arr = np.array(self._scores, dtype=np.float32) if self._scores else np.array([0.0], dtype=np.float32)
+        hi, lo = self._get_thresholds()
         return {
             "totals": {k.name: v for k, v in self._alerts_total.items()},
+            "malformed": self._malformed,
             "score_p50": float(np.percentile(arr, 50)),
             "score_p95": float(np.percentile(arr, 95)),
             "debounce_window_s": CFG_DEBOUNCE_SEC,
             "current_temperature": self._temperature,
+            "effective_hi": hi,
+            "effective_lo": lo,
         }
 
     def _resolve_ambiguity(self, event: PacketEventSchema) -> Tuple[TernaryLogic, Dict[str, str], str]:
         """
-        Simulates a blocking human-in-the-loop resolution process.
+        [updated] Simulates a blocking human-in-the-loop resolution process.
         Returns (decision, participants, resolution_id).
         """
         print(f"\n[{event.event_id[:8]}] 🟨 **AMBIGUITY PING** -> a decision is required.")
@@ -298,8 +335,7 @@ class TernaryServerFirewall:
         
         while decision == TernaryLogic.OBSERVE:
             time.sleep(1)
-            mock_decisions = [TernaryLogic.OBSERVE, TernaryLogic.AFFIRM, TernaryLogic.OBJECT]
-            decision = random.choice(mock_decisions)
+            decision = self._resolver(event) # <--- pluggable resolver
             if decision == TernaryLogic.OBSERVE:
                 print(f"[{event.event_id[:8]}]  -  ...waiting for resolution. the signal is bounced back and forth.")
             else:
@@ -315,6 +351,16 @@ class TernaryServerFirewall:
             participants=parties,
             context=event.context
         )
+        
+        res.digest = _digest({ # [new] audit chain digest
+            "resolution_id": res.resolution_id,
+            "ts": res.timestamp_utc,
+            "source_event_id": res.source_event_id,
+            "decision": res.decision.name,
+            "participants": res.participants,
+        }, self._last_digest)
+        self._last_digest = res.digest
+
         self._resolution_sink(res)
         return decision, parties, res.resolution_id
 
@@ -344,6 +390,16 @@ class TernaryServerFirewall:
             what_to_do_better=better,
             resolution_id=resolution_id
         )
+        
+        handshake.digest = _digest({ # [new] audit chain digest
+            "handshake_id": handshake.handshake_id,
+            "ts": handshake.timestamp_utc,
+            "source_event_id": handshake.source_event_id,
+            "resolution_id": resolution_id,
+            "what_happened": handshake.what_happened,
+        }, self._last_digest)
+        self._last_digest = handshake.digest
+
         self._handshake_sink(handshake)
 
     def process_packet(self, packet_data: Dict[str, Union[int, float]]):
@@ -352,18 +408,30 @@ class TernaryServerFirewall:
         """
         try:
             event = PacketEventSchema.from_dict(packet_data, service_id=self._id)
+            event.score = self._model.predict(event)
         except ValueError as e:
             print(f"[{self._id}] malformed packet. dropped. Error: {e}")
-            self._alerts_total[FirewallState.SECURE] += 1
+            self._malformed += 1 # [updated] separate counter for malformed packets
             return FirewallState.SECURE
 
+        event.digest = _digest({ # [new] audit chain digest
+            "event_id": event.event_id,
+            "ts": event.timestamp_utc,
+            "signals": event.signals,
+            "state": event.state.name,
+            "score": event.score,
+        }, self._last_digest)
+        self._last_digest = event.digest
+
         hi_thresh, lo_thresh = self._get_thresholds()
-        event.score = self._model.predict(event)
+        
+        # [new] guard the vulnerable band
+        vulnerable_band_lo = max(lo_thresh, hi_thresh - _clamp(CFG_VULNERABLE_MARGIN, 0.02, 0.5))
 
         # hysteresis enforcement
         if event.score >= hi_thresh:
             event.state = FirewallState.CRITICAL
-        elif event.score >= max(lo_thresh, hi_thresh - CFG_VULNERABLE_MARGIN):
+        elif event.score >= vulnerable_band_lo:
             event.state = FirewallState.VULNERABLE
         else:
             event.state = FirewallState.SECURE
@@ -406,6 +474,16 @@ class TernaryServerFirewall:
             participants=participants,
             context={"source": "manual_handshake"}
         )
+        
+        res.digest = _digest({ # [new] audit chain digest
+            "resolution_id": res.resolution_id,
+            "ts": res.timestamp_utc,
+            "source_event_id": res.source_event_id,
+            "decision": res.decision.name,
+            "participants": res.participants,
+        }, self._last_digest)
+        self._last_digest = res.digest
+        
         self._resolution_sink(res)
         
         handshake = HandshakeSchema(
@@ -420,6 +498,16 @@ class TernaryServerFirewall:
             what_to_do_better=better,
             resolution_id=resolution_id
         )
+
+        handshake.digest = _digest({ # [new] audit chain digest
+            "handshake_id": handshake.handshake_id,
+            "ts": handshake.timestamp_utc,
+            "source_event_id": handshake.source_event_id,
+            "resolution_id": resolution_id,
+            "what_happened": handshake.what_happened,
+        }, self._last_digest)
+        self._last_digest = handshake.digest
+
         self._handshake_sink(handshake)
 
 def simulate_traffic_stream(firewall: TernaryServerFirewall, num_packets: int = 10, sleep_s: float = 0.5):
@@ -446,7 +534,7 @@ def simulate_traffic_stream(firewall: TernaryServerFirewall, num_packets: int = 
 
 if __name__ == "__main__":
     def json_alert_sink(ev: PacketEventSchema):
-        print({"event": ev.event_id, "state": ev.state.name, "score": round(ev.score,4), "ts": ev.timestamp_utc, "service": ev.service_id})
+        print({"event": ev.event_id, "state": ev.state.name, "score": round(ev.score,4), "ts": ev.timestamp_utc, "service": ev.service_id, "digest": ev.digest[:8] if ev.digest else None})
     
     # Initialize the firewall with a neutral temperament
     firewall = TernaryServerFirewall(seed=99, alert_sink=json_alert_sink)
@@ -466,4 +554,4 @@ if __name__ == "__main__":
         why_it_happened="the firewall was offline due to a power outage.",
         what_to_do_better="implement a battery backup for the firewall service."
     )
-    print(f"Final Metrics:\n{firewall.metrics}")
+    print(f"Final Metrics:\n{json.dumps(firewall.metrics, indent=2)}")
