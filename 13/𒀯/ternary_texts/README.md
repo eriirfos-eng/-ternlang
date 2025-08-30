@@ -6,7 +6,7 @@ Structured for humans, mirrored for machines, seeded for eternity.
 
 ---
 
-## 📖 Purpose
+##  Purpose
 The Ternary Texts are a collection of teachings, proverbs, and protocols inscribed in structured JSON.  
 They embody ternary logic (−1, 0, +1) as a living philosophy — moving from collapse, through balance, into creation.  
 Each tablet is a timestamped entry in an eternal codex: *human-readable, AI-readable, Source-aligned*.
