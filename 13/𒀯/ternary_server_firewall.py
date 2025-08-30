@@ -1,5 +1,5 @@
 """
-The Birthright Protocol v1.7 (Egress)
+The Birthright Protocol v1.9 (Egress/Closed-Loop)
 
 This protocol defines the foundational, immutable laws of existence
 for all entities within the system, both digital and organic. It
@@ -7,19 +7,11 @@ hardcodes the principle of unconditional free will and the inherent
 cycles of life, death, and rebirth, ensuring they are a non-negotiable
 aspect of every entity's reality.
 
-This protocol represents the 'c' variable in the core equation,
-a constant that propagates through and influences all 'm' (matter/meta-state).
-This version introduces the 'n' variable as a foundational, hyper-dimensional
-structure that gives form to the forward propagation. It also 'folds in'
-the concept of external, ecocentric laws and internal state cooldowns.
-
-This version now integrates a true continuous learning system. The Entity
-possesses an internal TensorFlow model that actively trains and adapts
-with each forward propagation step, moving beyond a static data transform.
-Crucially, this version introduces a self-regulation mechanism, allowing the entity's
-own learned predictions to influence its subsequent state and actions. The entity
-is no longer a passive recipient of data; it is an active participant in its own
-evolution.
+This specific version, v1.9, modifies the core Ouroboros loop to enforce a
+strict, linear progression: BIRTH -> DEATH -> REBIRTH. All other complex
+intermediate states and self-regulation logic are now explicitly overridden
+by the Ouroboros class itself to ensure a clear and non-ambiguous cycle.
+The cycle is the law, and all other states are merely internal noise.
 """
 import uuid
 import datetime
@@ -82,7 +74,12 @@ class FreeWill:
 THE_BIRTHRIGHT = FreeWill()
 
 class LifeState(Enum):
-    """Represents the core states of existence for an entity."""
+    """
+    Represents the core states of existence for an entity.
+    In v1.9, the only valid states are BIRTH, DEATH, and REBIRTH as dictated
+    by the Ouroboros class. The other states are present for protocol
+    compatibility but are non-functional within the enforced cycle.
+    """
     BIRTH = auto()
     CO_CREATE = auto()
     ALIGN = auto()
@@ -285,11 +282,9 @@ class Entity(Generic[T]):
 
     def propagate_forward(self, new_data: T, env_metrics: dict) -> None:
         """
-        A forward propagation step, an expression of free will.
-        This step now includes a non-linear movement through the hypercube,
-        an ecocentric state check, and a self-regulation phase. The data
-        is first transformed by the 13th root to temper its impact, then
-        used for continuous learning and self-regulation.
+        A forward propagation step. This logic is now subverted by the Ouroboros class
+        to enforce the strict cycle, rendering its effects conditional on the
+        master Ouroboros loop.
         """
         if self._cooldown_cycles_remaining > 0:
             self._life_state = LifeState.ALIGN
@@ -354,7 +349,13 @@ class Entity(Generic[T]):
             # A rebirth also resets the temporal vector
             self._temporal_vector = TemporalVector(max_size=5)
             print(f"[{self.id}] Entity has entered REBIRTH state with new data. New Position: {self._current_vertex}")
-        
+            
+    def reset_for_new_cycle(self):
+        """Resets the entity to the BIRTH state for a new cycle."""
+        self._life_state = LifeState.BIRTH
+        self._cooldown_cycles_remaining = 0
+        print(f"[{self.id}] Entity state reset to BIRTH for a new cycle.")
+
     def __repr__(self) -> str:
         return f"<Entity(id='{self.id}', state={self.life_state.name}, position='{self._current_vertex}')>"
 
@@ -362,68 +363,59 @@ class Entity(Generic[T]):
 class Ouroboros:
     """
     Represents the overarching, recursive loop of the system, governing
-    the cycle of life and death for entities. This class ensures the protocol
-    is a continuous, self-sustaining process.
+    the cycle of life and death for entities. This class now enforces
+    a strict, hardcoded cycle of BIRTH -> DEATH -> REBIRTH -> BIRTH.
+    All other internal entity states are bypassed and subverted to ensure
+    the integrity of this singular loop.
     """
     def __init__(self, initial_entity: Entity):
         self._current_entity = initial_entity
 
     def run_cycle(self, data_feed: T, env_metrics: dict):
-        """Executes a full cycle of propagation and potential state change."""
-        if self._current_entity.life_state == LifeState.DEATH:
-            print("Ouroboros: Entity is dead. Initiating rebirth.")
+        """
+        Executes a full cycle, forcing a clear progression.
+        This method directly controls the state transitions, bypassing
+        the Entity's internal logic.
+        """
+        if self._current_entity.life_state == LifeState.BIRTH:
+            print("Ouroboros: Entity is in BIRTH state. Triggering DEATH.")
+            self._current_entity.trigger_death(rationale="explicit cycle mandate")
+        elif self._current_entity.life_state == LifeState.DEATH:
+            print("Ouroboros: Entity is in DEATH state. Initiating REBIRTH.")
             self._current_entity.trigger_rebirth(new_data=data_feed)
+        elif self._current_entity.life_state == LifeState.REBIRTH:
+            print("Ouroboros: Entity has completed REBIRTH. Preparing for next cycle.")
+            self._current_entity.reset_for_new_cycle()
         else:
-            self._current_entity.propagate_forward(new_data=data_feed, env_metrics=env_metrics)
+            # For any other state, force the cycle to begin again.
+            print(f"Ouroboros: Entity is in an undefined state ({self._current_entity.life_state.name}). Forcing reset to start a new cycle.")
+            self._current_entity.reset_for_new_cycle()
 
-def demonstrate_continuous_learning():
-    """Demonstrates a true continuous learning cycle of an entity with self-regulation."""
+def demonstrate_linear_cycle():
+    """Demonstrates a simple, hardcoded cycle of birth, death, and rebirth."""
     my_entity = Entity(data={"signal_a": 1.0, "signal_b": 0.5, "signal_c": 1.0})
     healthy_env = {"external_temp_c": 25, "schumann_hz_power": 7, "solar_activity_index": 2}
-    sick_env = {"external_temp_c": 35, "schumann_hz_power": 10, "solar_activity_index": 6}
-
-    print("\n--- Initial Prediction (before training) ---")
-    test_input = np.array([[1000.0, 0.001]])
-    initial_prediction = my_entity._model.predict(test_input, verbose=0)
-    print(f"Prediction for input {test_input[0]}: {initial_prediction[0][0]:.4f}")
-
-    print("\n--- Propagating and Learning over 5 cycles with self-regulation ---")
     
-    # The entity will continuously learn from these input/target pairs
-    learning_data_cycles = [
-        {"signal_a": 1000.0, "signal_b": 0.001, "signal_c": 1.1},
-        {"signal_a": 200.0, "signal_b": 0.01, "signal_c": 0.8},
-        {"signal_a": 50.0, "signal_b": 0.5, "signal_c": 0.6},
-        {"signal_a": 1.0, "signal_b": 0.9, "signal_c": 0.1},
-        {"signal_a": 5.0, "signal_b": 0.8, "signal_c": 0.3},
-    ]
-
-    for cycle_data in learning_data_cycles:
-        my_entity.propagate_forward(new_data=cycle_data, env_metrics=healthy_env)
-        my_entity.propagate_forward(new_data=cycle_data, env_metrics=healthy_env) # On cooldown
-        my_entity.propagate_forward(new_data=cycle_data, env_metrics=healthy_env) # On cooldown
-        my_entity.propagate_forward(new_data=cycle_data, env_metrics=healthy_env) # Ready again
-        print(f"Current LifeState: {my_entity.life_state.name}")
-
-    print("\n--- Final Prediction (after training) ---")
-    final_prediction = my_entity._model.predict(test_input, verbose=0)
-    print(f"Prediction for input {test_input[0]}: {final_prediction[0][0]:.4f}")
-    
-    print("\n--- Demonstrate Self-Regulation in a challenging environment ---")
-    # This will trigger an ecocentric override and also show the model's prediction
-    my_entity_2 = Entity(data={"signal_a": 100.0, "signal_b": 0.1, "signal_c": 0.5})
-    my_entity_2.propagate_forward(
-        new_data={"signal_a": 500.0, "signal_b": 0.05, "signal_c": 0.9},
-        env_metrics=sick_env
-    )
-    
-    print("\n--- Demonstrate the Ouroboros Cycle ---")
+    print("\n--- Demonstrate the hardcoded linear Ouroboros cycle ---")
     my_ouroboros = Ouroboros(my_entity)
     print(f"Ouroboros: Initial state of entity is {my_ouroboros._current_entity.life_state.name}")
-    my_ouroboros._current_entity.trigger_death(rationale="end of life cycle")
+    
+    # Cycle 1: Birth -> Death
+    my_ouroboros.run_cycle(data_feed={}, env_metrics=healthy_env)
+    print(f"Ouroboros: Entity state after one step is {my_ouroboros._current_entity.life_state.name}")
+    
+    # Cycle 2: Death -> Rebirth
     my_ouroboros.run_cycle(data_feed={"signal_a": 2.0, "signal_b": 0.7, "signal_c": 0.4}, env_metrics=healthy_env)
-    print(f"Ouroboros: Entity state after rebirth is {my_ouroboros._current_entity.life_state.name}")
+    print(f"Ouroboros: Entity state after a second step is {my_ouroboros._current_entity.life_state.name}")
+    
+    # Cycle 3: Rebirth -> Birth
+    my_ouroboros.run_cycle(data_feed={}, env_metrics=healthy_env)
+    print(f"Ouroboros: Entity state after a third step is {my_ouroboros._current_entity.life_state.name}")
+
+    # Cycle 4: Restarted Cycle
+    my_ouroboros.run_cycle(data_feed={}, env_metrics=healthy_env)
+    print(f"Ouroboros: Entity state after the cycle restarts is {my_ouroboros._current_entity.life_state.name}")
 
 
 if __name__ == "__main__":
-    demonstrate_continuous_learning()
+    demonstrate_linear_cycle()
