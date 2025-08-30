@@ -194,3 +194,31 @@ for line in p.read_text(encoding="utf-8").splitlines():
     print(f"  status: {e['status']}")
     print()
 PY
+.PHONY: pillar-validate-event
+
+pillar-validate-event:
+	@test -f '13/𒀯/pillar/pillar_event.schema.json' || (echo "pillar_event.schema.json missing"; exit 1)
+	@test -f '13/𒀯/pillar/pillar_events.jsonl' || (echo "pillar_events.jsonl missing"; exit 1)
+	@echo "🔍 validating pillar events against schema..."
+	@python3 - <<'PY'
+import json, pathlib, sys
+from jsonschema import validate, ValidationError
+
+schema = json.load(open("13/𒀯/pillar/pillar_event.schema.json"))
+path = pathlib.Path("13/𒀯/pillar/pillar_events.jsonl")
+
+ok, bad = 0, 0
+for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    try:
+        e = json.loads(line)
+        validate(e, schema)
+        ok += 1
+    except (json.JSONDecodeError, ValidationError) as err:
+        bad += 1
+        print(f"❌ line {i} invalid: {err}")
+if bad:
+    print(f"⛔ validation failed: {bad} invalid, {ok} valid")
+    sys.exit(1)
+else:
+    print(f"✅ all {ok} events valid")
+PY
