@@ -1007,6 +1007,115 @@ def main(argv: Optional[List[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
+# a neurosymbolic ai agent based on ternary logic for analyzing maternal instinct components.
+
+class TernaryState:
+    """represents a ternary logic state."""
+    AFFIRM = +1
+    OBSERVE = 0
+    REJECT = -1
+
+class MaternalInstinctAgent:
+    """
+    an agent that evaluates the 13 key aspects of maternal instinct using
+    ternary logic.
+    """
+
+    def __init__(self, agent_id: str):
+        """initializes the agent with an id and an empty state."""
+        self.agent_id = agent_id
+        self.state = {}
+        print(f"agent {self.agent_id} initialized with ternary logic.")
+
+    def evaluate_component(self, component_name: str, value: float):
+        """
+        evaluates a single component based on a float value and assigns a ternary state.
+        
+        a score of 0.75 or higher is a clear affirmation (+1).
+        a score of 0.25 or lower is a clear rejection (-1).
+        a score between 0.25 and 0.75 requires observation (0).
+        """
+        if value >= 0.75:
+            self.state[component_name] = TernaryState.AFFIRM
+        elif value <= 0.25:
+            self.state[component_name] = TernaryState.REJECT
+        else:
+            self.state[component_name] = TernaryState.OBSERVE
+        print(f"component '{component_name}' evaluated as: {self.state[component_name]}")
+
+    def analyze_instincts(self, data: dict):
+        """
+        evaluates all 13 components from a dictionary of data.
+        
+        args:
+            data (dict): a dictionary with component names as keys and a
+                         float score (0.0 to 1.0) as values.
+        """
+        print("\nstarting comprehensive analysis of maternal instincts...")
+        for component, score in data.items():
+            self.evaluate_component(component, score)
+        print("\nanalysis complete.")
+
+    def get_action_recommendation(self):
+        """
+        recommends an action based on the current state of the agent.
+        
+        the recommendation follows a simple logic:
+        - if any component is a -1 (reject), the action is 'intervene'.
+        - if any component is a 0 (observe), the action is 'tend'.
+        - if all components are +1 (affirm), the action is 'affirm'.
+        """
+        if TernaryState.REJECT in self.state.values():
+            return "intervene"
+        elif TernaryState.OBSERVE in self.state.values():
+            return "tend"
+        else:
+            return "affirm"
+
+# example usage:
+if __name__ == "__main__":
+    
+    # 13 key aspects
+    aspects = [
+        "hormonal_priming", "neural_plasticity", "sensory_recognition", 
+        "protective_drive", "lactation_and_feeding", "attunement_and_empathy",
+        "attachment_formation", "motivation_for_caregiving", "the_learning_curve", 
+        "emotional_regulation", "cooperative_breeding", "social_support_network", 
+        "generational_knowledge"
+    ]
+    
+    # example data with hypothetical scores
+    # these scores represent sensor data from a hypothetical system that
+    # measures the state of each aspect (e.g., hormone levels, observed behavior).
+    sample_data = {
+        "hormonal_priming": 0.85,  # high score, a clear +1
+        "neural_plasticity": 0.50, # medium score, requires 0 (observation)
+        "sensory_recognition": 0.90, # high score, +1
+        "protective_drive": 0.95, # high score, +1
+        "lactation_and_feeding": 0.60, # requires observation, 0
+        "attunement_and_empathy": 0.80, # high score, +1
+        "attachment_formation": 0.10, # low score, -1 (rejection/issue)
+        "motivation_for_caregiving": 0.92, # high score, +1
+        "the_learning_curve": 0.45, # observation, 0
+        "emotional_regulation": 0.70, # observation, 0
+        "cooperative_breeding": 0.20, # low score, -1
+        "social_support_network": 0.30, # observation, 0
+        "generational_knowledge": 0.55 # observation, 0
+    }
+    
+    # create and run the agent
+    m_agent = MaternalInstinctAgent("mom_alpha_01")
+    m_agent.analyze_instincts(sample_data)
+    
+    # get the final recommendation
+    action = m_agent.get_action_recommendation()
+    print(f"\nfinal action recommendation: '{action}'")
+    
+    # print the full state for detailed analysis
+    print("\nagent's final state:")
+    print(m_agent.state)
+
+
 # pad 0001
 # pad 0002
 # pad 0003
