@@ -107,6 +107,181 @@ Temperature Scalar Integration:
 
 The firewall/platform must modulate vigilance: paranoid (negative temperature) → stricter diversity checks, permissive (positive temperature) → looser tolerance but still never collapsing to binary.
 
+Serendipity Injector — stage-4 antidote to monoculture
+What it does
+
+Measures feed narrowness (diversity + novelty).
+
+Uses ternary gating to decide: reject loop (-1), hold/observe (0), or inject/affirm (+1).
+
+Injects a controlled slice of out-of-cluster content (serendipity) with audit trails.
+
+Adapts via temperature: more paranoid → more exploration, more permissive → less.
+
+Inputs
+
+user_id
+
+candidates: list of items with embeddings + metadata
+
+history: last N consumed items (embeddings, topics, sources, timestamps)
+
+temperature ∈ [-1,1]
+
+policy caps: explore_floor, explore_ceiling, daily_explore_budget
+
+Core scores
+
+DiversityScore: topic/source entropy of history window.
+
+NoveltyScore(item): 1 – cosine_sim(item.embedding, centroid(history)).
+
+LoopScore: moving avg similarity between consecutive consumed items (higher = more monoculture).
+
+Ternary decision
+
+If LoopScore > τ_high and DiversityScore < δ_low → -1 (Object): block reinforcement; force explore.
+
+If borderline → 0 (Observe): log + trickle explore.
+
+If healthy diversity → +1 (Affirm): minimal explore, mostly exploit.
+
+Pseudocode (Python-ish, standalone)
+from math import exp
+import numpy as np
+
+def cosine(a,b): 
+    return float(np.dot(a,b) / (np.linalg.norm(a)*np.linalg.norm(b) + 1e-9))
+
+def entropy(p):
+    p = np.clip(p, 1e-9, 1.0); p = p/np.sum(p)
+    return float(-np.sum(p * np.log2(p)))
+
+def diversity_score(history_topics, history_sources):
+    Ht = entropy(np.bincount(history_topics))
+    Hs = entropy(np.bincount(history_sources))
+    # normalize by max possible bits for quick 0..1 scaling
+    Ht_norm = Ht / max(1.0, np.log2(max(history_topics)+1))
+    Hs_norm = Hs / max(1.0, np.log2(max(history_sources)+1))
+    return 0.6*Ht_norm + 0.4*Hs_norm
+
+def loop_score(history_embeddings):
+    sims = [cosine(history_embeddings[i], history_embeddings[i-1]) 
+            for i in range(1, len(history_embeddings))]
+    return float(np.mean(sims)) if sims else 0.0
+
+def novelty(item_emb, history_embeddings):
+    centroid = np.mean(history_embeddings, axis=0)
+    return 1.0 - cosine(item_emb, centroid)
+
+def explore_ratio(temperature, base_floor=0.10, base_ceiling=0.35):
+    # paranoid (neg) → explore more; permissive (pos) → explore less
+    t = float(np.clip(temperature, -1.0, 1.0))
+    scale = 0.5 - 0.3*t   # t=-1 → 0.8; t=+1 → 0.2
+    r = base_floor + (base_ceiling - base_floor)*scale
+    return float(np.clip(r, base_floor, base_ceiling))
+
+def ternary_gate(loop, diversity, τ_high=0.82, τ_mid=0.74, δ_low=0.35, δ_mid=0.50):
+    if loop >= τ_high and diversity <= δ_low:
+        return -1  # OBJECT: monoculture loop detected
+    if loop >= τ_mid and diversity <= δ_mid:
+        return 0   # OBSERVE: borderline
+    return 1       # AFFIRM: healthy
+
+def serendipity_inject(user_id, candidates, history, temperature, budget_remaining):
+    # unpack history
+    H_emb = [h["embedding"] for h in history]
+    H_topics = [h["topic_id"] for h in history]
+    H_sources = [h["source_id"] for h in history]
+
+    L = loop_score(H_emb)
+    D = diversity_score(H_topics, H_sources)
+    gate = ternary_gate(L, D)
+
+    target_explore = explore_ratio(temperature)
+    # don’t exceed per-user/day budget
+    target_explore = min(target_explore, budget_remaining)
+
+    # rank candidates by exploit vs explore
+    for c in candidates:
+        c["novelty"] = novelty(c["embedding"], H_emb)
+        c["affinity"] = float(c.get("pred_click", 0.0))  # your model score
+
+    # split pools
+    explore_pool = sorted(candidates, key=lambda x: x["novelty"], reverse=True)
+    exploit_pool = sorted(candidates, key=lambda x: x["affinity"], reverse=True)
+
+    # compute mix based on gate
+    if gate == -1:
+        mix = 1.0  # go full explore temporarily
+    elif gate == 0:
+        mix = max(target_explore, 0.5*target_explore + 0.15)
+    else:
+        mix = max(0.10, target_explore * 0.7)  # always some explore
+
+    k = len(candidates)
+    k_explore = int(round(mix * k))
+    k_exploit = k - k_explore
+
+    chosen = explore_pool[:k_explore] + exploit_pool[:k_exploit]
+    # de-duplicate if overlaps
+    seen = set()
+    feed = []
+    for it in chosen:
+        _id = it["id"]
+        if _id in seen: 
+            continue
+        seen.add(_id); feed.append(it)
+
+    audit = {
+        "user_id": user_id,
+        "loop_score": round(L,4),
+        "diversity_score": round(D,4),
+        "gate": { -1:"OBJECT", 0:"OBSERVE", 1:"AFFIRM"}[gate],
+        "target_explore": round(target_explore,3),
+        "actual_explore": round(k_explore/ max(1,k),3),
+        "temperature": round(float(temperature),3),
+        "shadow_not_shown": [c["id"] for c in candidates if c["id"] not in seen]
+    }
+    return feed, audit
+
+Guardrails
+
+Explore floor: never below 10% exploration, even in “healthy” feeds.
+
+Budget: per-user daily explore cap so novelty stays delightful, not spammy.
+
+Shadow logging: always record what you didn’t show (transparency lever).
+
+Canary: roll out to a % of users/requests; monitor override/mute rates.
+
+Auditable metrics (log per request)
+
+loop_score, diversity_score, gate, actual_explore
+
+novelty@k average, source_entropy, topic_entropy
+
+downstream: dwell delta, save/share rate on explore items, mute/complaint rate
+
+Success criteria (weekly SLOs)
+
+source_entropy and topic_entropy up (≥ +10% vs baseline)
+
+Complaints on explore items flat (≤ +3% delta)
+
+Retention non-degrading (±2%) while novel discovery up (saves/shares on new sources)
+
+Where to wire it
+
+Before final ranking: use as a re-ranker that slices in high-novelty items.
+
+Or as a post-rank shim that swaps a percentage of near-duplicates for out-of-cluster items.
+
+Feed the audit into your audit chain, and trigger a handshake when gate = -1 persists (platform in monoculture).
+
+Example “handshake” when loop persists
+
+“Observed monoculture for user 42 across 3 sessions (loop=0.88, diversity=0.28). Forced explore=0.60 for 1 session. Review classifier for near-dup detection.”
 Practical Rule:
 Whenever faced with the temptation to reduce humans to metadata, the system must pause at 0 unless it can show that the outcome preserves plurality, unpredictability, and freedom of choice.
 
