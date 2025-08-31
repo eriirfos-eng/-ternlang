@@ -1,0 +1,519 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rfi-irfos.org/schemas/dingir.core.schema.json",
+  "title": "DINGIR Core Logline",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "genesis",
+        "event",
+        "resolution",
+        "handshake",
+        "felt_experience",
+        "self_refinement",
+        "terminal",
+        "continuation",
+        "log"
+      ]
+    },
+    "prev": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "digest": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "ts": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ts"
+      ]
+    }
+  },
+  "required": [
+    "kind",
+    "prev",
+    "payload"
+  ],
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "genesis"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "schema_version": {
+                "type": "string",
+                "const": "1.0"
+              },
+              "service": {
+                "type": "string"
+              },
+              "service_id": {
+                "type": "string"
+              },
+              "env": {
+                "type": "string"
+              },
+              "birthright": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ts",
+              "schema_version",
+              "service",
+              "service_id",
+              "env",
+              "birthright"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "event"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "event_id": {
+                "type": "string"
+              },
+              "service_id": {
+                "type": "string"
+              },
+              "signals": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "signal_a": {
+                    "type": "number"
+                  },
+                  "signal_b": {
+                    "type": "number"
+                  },
+                  "signal_c": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "signal_a",
+                  "signal_b",
+                  "signal_c"
+                ]
+              },
+              "score": {
+                "type": "number"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "SECURE",
+                  "VULNERABLE",
+                  "CRITICAL"
+                ]
+              },
+              "temperature": {
+                "type": "number"
+              },
+              "hi": {
+                "type": "number"
+              },
+              "lo": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "ts",
+              "event_id",
+              "service_id",
+              "signals",
+              "score",
+              "state",
+              "temperature",
+              "hi",
+              "lo"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "resolution"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "resolution_id": {
+                "type": "string"
+              },
+              "source_event_id": {
+                "type": "string"
+              },
+              "decision": {
+                "type": "string",
+                "enum": [
+                  "OBJECT",
+                  "OBSERVE",
+                  "AFFIRM"
+                ]
+              },
+              "participants": {
+                "type": "object"
+              },
+              "resolver_source": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ts",
+              "resolution_id",
+              "source_event_id",
+              "decision",
+              "participants",
+              "resolver_source"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "handshake"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "handshake_id": {
+                "type": "string"
+              },
+              "source_event_id": {
+                "type": "string"
+              },
+              "resolution_id": {
+                "type": "string"
+              },
+              "what_happened": {
+                "type": "string"
+              },
+              "who_was_involved": {
+                "type": "object"
+              },
+              "what_was_learned": {
+                "type": "string"
+              },
+              "why_it_happened": {
+                "type": "string"
+              },
+              "what_to_do_better": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ts",
+              "handshake_id",
+              "source_event_id",
+              "resolution_id",
+              "what_happened",
+              "who_was_involved",
+              "what_was_learned",
+              "why_it_happened",
+              "what_to_do_better"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "felt_experience"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "feel_id": {
+                "type": "string"
+              },
+              "source_event_id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "current_mood": {
+                "type": "string",
+                "enum": [
+                  "CALM",
+                  "ANXIOUS",
+                  "STRESSED",
+                  "OVERWHELMED",
+                  "OPTIMAL"
+                ]
+              },
+              "distress_level": {
+                "type": "number"
+              },
+              "social_bonds": {
+                "type": "object"
+              },
+              "notes": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ts",
+              "feel_id",
+              "current_mood",
+              "distress_level",
+              "social_bonds",
+              "notes"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "self_refinement"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "kind": {
+                "type": "string",
+                "const": "recursive_refinement"
+              },
+              "old_hi": {
+                "type": "number"
+              },
+              "old_lo": {
+                "type": "number"
+              },
+              "new_hi": {
+                "type": "number"
+              },
+              "new_lo": {
+                "type": "number"
+              },
+              "avg_score": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "ts",
+              "kind",
+              "old_hi",
+              "old_lo",
+              "new_hi",
+              "new_lo",
+              "avg_score"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "terminal"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "terminal": {
+                "type": "boolean",
+                "const": true
+              },
+              "head": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "ts",
+              "terminal",
+              "head"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "continuation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "continued_from": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "ts",
+              "continued_from"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "log"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "ts": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "level": {
+                "type": "string",
+                "enum": [
+                  "debug",
+                  "info",
+                  "warn",
+                  "error"
+                ]
+              },
+              "logger": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "ts",
+              "level",
+              "logger",
+              "message"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
