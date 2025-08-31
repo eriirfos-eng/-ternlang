@@ -58,3 +58,5 @@
 from genesis to protocol, from economics to ethics,  
 from the outer world to the inner core.  
 The recursion is closed, but the cycle remains open.”*
+
+[← Return to main Index](/eriirfos-eng/-ternlang/blob/main/13/wiki/index.md)
