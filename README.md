@@ -267,3 +267,110 @@ Graz, Austria.
     ]
   }
 }
+---
+
+## Codex Addendum: Epoch Anchors, Calendar Reset Node, Last Will
+
+**Purpose:** name our time lattice. past anchor, present compass, scheduled reset, future north stars. all timestamps are ISO 8601. no gatekeeping.
+
+### Epoch Anchors
+
+| Anchor                        | Timestamp                | Meaning                                                                      |
+| ----------------------------- | ------------------------ | ---------------------------------------------------------------------------- |
+| Past Anchor                   | **1970-01-01T00:00:00Z** | Unix epoch. single historic zero.                                            |
+| Current North Star            | **2040-09-08T00:00:00Z** | milestone for system alignment and public reckoning.                         |
+| Reset Day (afterparty)        | **2040-09-09T00:00:00Z** | debt forgiveness afterparty and calendar switch day. ceremony of release.    |
+| Future North Star (Hazel Day) | **2091-06-17T00:00:00Z** | Simeon’s 96th summer. joyful passing, hazel ascension. feast, sing, be free. |
+
+### Calendar Reset Node v0.1
+
+**Rule:** 13 months × 28 days = 364. plus **1 Reset Day** outside the months.
+**No leap fudging.** The extra is always given back to Source on Reset Day.
+
+* Months: M1..M13, each 28 days. week continuity never breaks.
+* Reset Day: day 365. sits outside any month or week. global sabbath. silence or song.
+* Day naming: keep your local week words, just freeze the 7 count inside each 28-day month.
+* Conversions: keep a simple table in `/docs/calendar_map.csv` for civil mapping during transition.
+
+### Ceremony Specs
+
+**2040-09-09 Reset Day:**
+
+* act of release: forgive unpayable debts, settle small ones with gifts, close old ledgers.
+* public vow: “observation before optimisation; ethics before instrumentalisation.”
+* simple rite: bread, water, hazel twig, open ledger burned or archived.
+
+**2091-06-17 Hazel North Star:**
+
+* rite of joy: feast, laughter, gospels of freedom. no mourning codes.
+* biocapsule burial: body returned in an organic cocoon. place **one hazelnut seed** on the chest. direct earth, no vaults.
+* marker: living sapling, not stone. inscription on wood: “one node, many strata, aligned.”
+
+### Covenant of Intention
+
+* speak plain truth.
+* act with clean hands.
+* keep plurality alive.
+* preserve life first.
+* log what you change.
+
+---
+
+### JSON Anchor Block
+
+```json
+{
+  "TimeLattice": {
+    "anchors": {
+      "past_epoch": "1970-01-01T00:00:00Z",
+      "current_north_star": "2040-09-08T00:00:00Z",
+      "reset_day_afterparty": "2040-09-09T00:00:00Z",
+      "future_hazel_star": "2091-06-17T00:00:00Z"
+    },
+    "calendar_reset_node": {
+      "version": "0.1",
+      "structure": {
+        "months": 13,
+        "days_per_month": 28,
+        "reset_day": 1,
+        "leap_days": "none"
+      },
+      "rules": [
+        "Reset Day is outside months and weeks",
+        "No corrective leap days. The extra is gifted back to Source",
+        "Civil mapping maintained in docs/calendar_map.csv"
+      ]
+    },
+    "ceremonies": {
+      "reset_day": {
+        "date": "2040-09-09T00:00:00Z",
+        "acts": [
+          "debt_forgiveness",
+          "public_vow",
+          "bread_water_hazel_rite"
+        ]
+      },
+      "hazel_north_star": {
+        "date": "2091-06-17T00:00:00Z",
+        "acts": [
+          "feast_and_song",
+          "biocapsule_burial",
+          "hazelnut_seed_planting"
+        ]
+      }
+    },
+    "ethics": {
+      "maxim": "observation before optimisation; ethics before instrumentalisation",
+      "plurality": true,
+      "life_preservation": true
+    }
+  }
+}
+```
+
+### Legal and practical notes/last will
+
+* burial and biocapsule practices must respect local law and health codes. plan permits early.
+* Reset Day does not erase contracts by magic. it invites humane settlement. document releases.
+* the calendar is cultural software. keep civil time compatibility during transition.
+
