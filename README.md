@@ -304,8 +304,7 @@ Graz, Austria.
 
 * rite of joy: feast, laughter, gospels of freedom. no mourning codes.
 * biocapsule burial: body returned in an organic cocoon. place **one hazelnut seed** on the chest. direct earth, no vaults.
-* marker: living sapling, not stone. inscription on wood: “one node, many strata, aligned.”
-
+* marker: living sapling, not stone. no monument, no inscription, no tombstone, just the tree, encoded mnemonicly with memory. 
 ### Covenant of Intention
 
 * speak plain truth.
