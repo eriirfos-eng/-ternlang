@@ -1004,6 +1004,25 @@ https://colab.research.google.com/drive/1i7HO-SlG5scLUgGQdN-yZF-Zjp7A-hBM?usp=sh
      "gnome_version": 46,
      "windowing_system": "Wayland",
      "kernel_version": "Linux 6.14.0-27-generic"
+
+     # on init
+chain_dir = os.path.dirname(CFG_CHAIN_PATH) or "."
+os.makedirs(chain_dir, exist_ok=True)
+
+# enforce resolver injection outside dev
+if CFG_ENV not in ("dev",):
+    self._resolver = lambda ev: TernaryLogic.OBJECT  # safe default until set_resolver() called
+    self._resolver_source = "safe_default_requires_injection"
+
+# stronger denylist
+_EXTRA_DENY = {"auth", "token", "session", "cookie", "jwt", "apikey", "password"}
+_DENY_CTX = _DENY_CTX | _EXTRA_DENY
+
+# non-blocking ambiguity (sketch)
+def _resolve_async(self, event):
+    t = threading.Thread(target=self._resolve_sync, args=(event,), daemon=True)
+    t.start()
+
    }
  }
 }
