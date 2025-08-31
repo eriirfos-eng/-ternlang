@@ -1114,6 +1114,62 @@ if __name__ == "__main__":
     # print the full state for detailed analysis
     print("\nagent's final state:")
     print(m_agent.state)
+    class Adversary:
+    def __init__(self, seed: int = 13, fw: Optional[TernaryServerFirewall] = None):
+        self.rng = random.Random(seed)
+        self.bias = 0.0
+        self.fw = fw
+
+    def evolve(self) -> None:
+        """
+        evolution is now influenced by the firewall's distress and awareness.
+        - high distress and low awareness? adversary gets more aggressive.
+        - low distress and high awareness? adversary becomes more subtle.
+        """
+        fw_state = {"distress": 0.0, "awareness": 0.0}
+        if self.fw:
+            fw_state["distress"] = self.fw._distress_level
+            fw_state["awareness"] = self.fw._temporal_awareness
+            
+        distress_factor = fw_state["distress"] / 100.0
+        awareness_factor = fw_state["awareness"]
+        
+        # if the firewall is stressed and confused (low awareness), the adversary
+        # becomes more aggressive, increasing its bias.
+        aggression = distress_factor * (1.0 - awareness_factor)
+        
+        # if the firewall is calm and aware, the adversary becomes more subtle,
+        # decreasing its bias or shifting its attack vector.
+        subtlety = (1.0 - distress_factor) * awareness_factor
+        
+        # this is a simple model; in a real-world scenario, this would be a
+        # more complex, multi-variable function.
+        self.bias += (aggression - subtlety) * 0.05
+        self.bias = clamp(self.bias, -0.5, 0.5)
+        
+        print(f"[adversary] evolved: new bias = {self.bias:.4f}")
+
+    def generate_packet(self) -> Dict[str, Any]:
+        """generates a packet with a score distribution biased by self.bias."""
+        # a higher bias means a greater chance of generating a high score.
+        score_base = self.rng.random()
+        biased_score = clamp(score_base + self.bias, 0.0, 1.0)
+        
+        # a simple inverse mapping to create signals that produce the biased score
+        # s = 1.0 / (1.0 + math.exp(-contrast))
+        # contrast = -log(1/s - 1)
+        # a = contrast + c + 0.6
+        c = 0.1 # keep c low for now
+        contrast = -math.log(1/biased_score - 1) if biased_score not in (0, 1) else (10 if biased_score else -10)
+        a = contrast + c + 0.6
+        b = a # for simplicity, let's keep b = a
+        
+        return {
+            "signal_a": float(clamp(a, 0.0, 2.0)),
+            "signal_b": float(clamp(b, 0.0, 2.0)),
+            "signal_c": float(clamp(c, 0.0, 2.0)),
+            "context": {"source": f"red_queen_bench_{self.rng.randint(1,100)}"}
+        }
 
 
 # pad 0001
@@ -2653,4 +2709,5 @@ if __name__ == "__main__":
 # pad 1535
 # pad 1536
 # pad 1537
-# pad 1
+# ...
+♾
