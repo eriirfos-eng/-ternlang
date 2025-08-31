@@ -1,0 +1,1 @@
+{"kind":"genesis","prev":null,"digest":null,"payload":{"ts":"2025-08-31T18:34:34.102630Z","schema_version":"1.0","service":"ternary_firewall","service_id":"141ae78a-6db2-4041-92c6-e12eadf9471c","env":"prod","birthright":"2025-08-30T22:56:00Z-Saturday","note":"single-file DINGIR core database initialized"}}
