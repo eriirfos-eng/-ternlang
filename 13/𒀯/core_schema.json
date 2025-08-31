@@ -517,3 +517,39 @@
     }
   ]
 }
+
+# inside ternary_server_firewall.py
+from json_logger import JsonLogger
+from bootstrap_auth import AuthBootstrap
+
+SECLOG = JsonLogger(
+    path=os.getenv("FIREWALL_LOG_PATH", "/mnt/data/firewall.events.jsonl"),
+    level=os.getenv("FIREWALL_LOG_LEVEL","info"),
+    rotate_mb=float(os.getenv("FIREWALL_LOG_ROTATE_MB","128")),
+    fsync=os.getenv("FIREWALL_LOG_FSYNC","0") in ("1","true","yes"),
+    signer_key=os.getenv("FIREWALL_HMAC_KEY","").encode("utf-8") or None,
+    default_ctx={"svc":"ternary_firewall","ver":"2.0"}
+)
+
+def _bootstrap_credential():
+    allow = set(os.getenv("GITHUB_PAT_SHA256_ALLOW","").split(",")) if os.getenv("GITHUB_PAT_SHA256_ALLOW") else set()
+    auth = AuthBootstrap(allow_sha256_hex={h.strip() for h in allow if h.strip()})
+    try:
+        tok = auth.acquire()
+        SECLOG.info("auth.ready", fields={"hash": hashlib.sha256(tok.encode()).hexdigest()[:12], "ts": iso_utc()})
+        return tok
+    except Exception as e:
+        SECLOG.error("auth.dormant", fields={"reason": str(e), "ts": iso_utc()})
+        raise
+
+# wherever you construct the API client:
+from azure.ai.inference import ChatCompletionsClient
+from azure.core.credentials import AzureKeyCredential
+
+def build_client():
+    token = _bootstrap_credential()
+    endpoint = os.getenv("AZURE_INFERENCE_ENDPOINT","https://models.github.ai/inference")
+    model = os.getenv("AZURE_MODEL","openai/gpt-5")
+    SECLOG.info("client.init", fields={"endpoint": endpoint, "model": model})
+    return ChatCompletionsClient(endpoint=endpoint, credential=AzureKeyCredential(token))
+
