@@ -116,3 +116,73 @@ python ternlang_prototype.py
 
 [![OIUIDI Operator Law](https://img.shields.io/badge/OIUIDI-Operator%20Law-brightgreen?style=flat-square&logo=markdown)](./docs/oiuidi/OIUIDI_OperatorLaw.txt)
 
+# Root Landing Page — RFI‑IRFOS Public Repository
+
+## Welcome
+
+You’ve reached the **root** of the cathedral: a transparent, uncut publication of the entire tree. Every directory here is intentional. Some are polished, some are raw, all are part of the living archive.
+
+This is not a curated website. It’s the *whole repo*, served live. That means:
+
+* every folder is explorable
+* every document is visible
+* nothing has been excluded
+
+Transparency is the principle. Exploration is the invitation.
+
+---
+
+## Primary Directories
+
+### `/13`
+
+Research nucleus. Home of theoretical frameworks, manifesto drafts, and canonical notes.
+
+### `/docs`
+
+Traditional documentation zone. Holds proposals, reports, and structured write‑ups.
+
+### `/edge`
+
+Tier‑0 heartbeat edge modules. Detector code, timing specs, and low‑latency operational notes.
+
+### `/relay`
+
+Emergency relay layer. Protobuf schemas, dispatch pipelines, and PSAP integration logic.
+
+### `/audit`
+
+Merkle audit chains, compliance logs, and verification flows. Legal + technical oversight lives here.
+
+### `/ui`
+
+Interfaces and presentation logic. User‑facing consent flows and demo front‑ends.
+
+---
+
+## Principles
+
+* **Observation before optimisation**
+* **Ethics before instrumentalisation**
+* **Transparency before polish**
+
+---
+
+## Notes for Visitors
+
+* This repo is live‑served. Expect drafts, experiments, and anomalies.
+* Every commit, every file, is exposed. Treat it as an evolving research notebook.
+* Citations, code, and diagrams may shift without warning.
+
+---
+
+## Contact
+
+RFI‑IRFOS — Interdisciplinary Research Facility for Open Sciences.
+Graz, Austria.
+
+---
+
+**Timestamp:** 2025-08-31T09:48:04Z-Sunday
+
+**Motto:** a hard rule inside a soft system — 0 protects curiosity, +1 preserves life, −1 defends the commons.
