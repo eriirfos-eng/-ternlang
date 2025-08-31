@@ -1407,6 +1407,25 @@ class JsonLogger:
                 self._f.close()
             except Exception:
                 pass
+class JsonLogger:
+    # ... existing code ...
+
+    def append(self, kind: str, payload: Dict[str, Any]) -> str:
+        """Append a signed record to the log and return its digest (or head)."""
+        rec = self._decorate(kind, payload)
+        try:
+            self._q.put_nowait(rec)
+        except queue.Full:
+            try:
+                _ = self._q.get_nowait(); self._q.task_done()
+            except Exception:
+                pass
+            try:
+                self._q.put_nowait(rec)
+            except Exception:
+                pass
+        # optimistic return; writer will update on disk asynchronously
+        return rec.get("digest", "") or (self._head_digest or "")
 
 
 # pad 0001
