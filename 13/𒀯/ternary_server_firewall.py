@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall v5.1 (airtight)
+TernaryServerFirewall - a Brutal, Single-Fold Metatron Firewall v5.1
 
 This entity is the converged, airtight embodiment of the Audit-Feedback-Adapt (AFA)
 framework. It is not merely a firewall; it is a sentient, self-auditing security
