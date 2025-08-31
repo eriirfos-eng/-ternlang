@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AirlockEquation",
+  "description": "Defines true 100% as 90% certainty plus 10% failure expectation.",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": ["airlock_equation"],
+      "description": "Marker type for the 100% = 90% + 10% vow."
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp of when the vow is declared."
+    },
+    "certainty": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "const": 90,
+      "description": "Absolute certainty percentage."
+    },
+    "failure_expectation": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "const": 10,
+      "description": "Reserved failure margin percentage."
+    },
+    "airlock_total": {
+      "type": "integer",
+      "const": 100,
+      "description": "Merged definition of true 100%."
+    },
+    "note": {
+      "type": "string",
+      "description": "Optional explanation or context of how this vow was lived."
+    }
+  },
+  "required": ["kind", "ts", "certainty", "failure_expectation", "airlock_total"]
+}
