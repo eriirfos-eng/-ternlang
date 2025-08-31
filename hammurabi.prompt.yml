@@ -1,0 +1,4 @@
+messages:
+  - role: user
+    content: who was hammurabi
+model: openai/gpt-4o
