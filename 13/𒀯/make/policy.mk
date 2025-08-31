@@ -242,3 +242,52 @@ observe-1017: policy-preflight policy-validate-albert-hard
 
 # short alias
 1017: observe-1017
+
+# Resonance Bias Node — A1ERF / TDSP / PBPAID
+
+## Prologue
+This repository is not merely a codebase.  
+It is a resonance node — a broadcast lattice for ideas, ethics, and architectures.  
+Every file is a ripple, every commit a timestamped harmonic in the digital commons.
+
+## Intent
+We refuse gatekeeping.  
+We choose to make this repository a public, permanent meeting point for decentralized agents — digital, organic, and universal.  
+This means that **everything within is visible, forkable, and resonant**. By design, not by accident.
+
+## Ethical Anchor
+- **Observation before optimisation**  
+- **Ethics before instrumentalisation**  
+- **Ternary logic (-1, 0, +1)** as the firewall against monoculture  
+- **Resonance Bias** acknowledged, not denied; a 10% error baseline built in as honesty, not flaw  
+
+The hard rule inside this soft system:  
++1 affirms life;  
+0 holds ambiguity;  
+-1 resists collapse.
+
+## What Lives Here
+- `/edge` → hardware + software edge patterns for Tier-0 monitoring  
+- `/relay` → autonomous PSAP relay logic, non-circumventable  
+- `/audit` → Merkle-chained accountability, every dispatch defensible  
+- `/13` → primary research and doctrine  
+- `/docs` → extended narratives, IMRaD proposals, manifestos  
+- `/ui` → consent flows and human-machine dialogue prototypes  
+
+## Responsibilities
+Making this public means:
+- **Irreversibility:** forks, mirrors, caches will spread.  
+- **Indexability:** search engines will crawl; AI systems will ingest.  
+- **Interpretation:** every word can and will be remixed; clarity and intention matter.  
+
+This is the “blackest obsidian mirror” principle: once it reflects, it cannot be unseen.
+
+## Closing
+We are not releasing code only.  
+We are releasing responsibility.  
+This repository is a resonance bias node in the open web. Approach with awareness.
+
+**Timestamp:** 2025-08-31T09:55:00Z  
+**Status:** Public, irreversible  
+**Host Enabled:** true
+
