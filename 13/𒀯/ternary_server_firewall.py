@@ -1170,6 +1170,217 @@ if __name__ == "__main__":
             "signal_c": float(clamp(c, 0.0, 2.0)),
             "context": {"source": f"red_queen_bench_{self.rng.randint(1,100)}"}
         }
+# json_logger.py
+from __future__ import annotations
+import os, io, json, hmac, time, hashlib, threading, queue
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
+
+def _iso_utc(ts: Optional[float] = None) -> str:
+    t = datetime.fromtimestamp(ts if ts is not None else time.time(), tz=timezone.utc)
+    return t.isoformat(timespec="microseconds").replace("+00:00", "Z")
+
+class JsonLogger:
+    """
+    structured json logger with:
+      - levels: debug, info, warn, error
+      - async writer with backpressure
+      - size rotation with continuity footer and header
+      - optional hmac signature per record
+      - context merge and correlation ids
+    """
+
+    def __init__(
+        self,
+        path: Optional[str] = None,
+        *,
+        level: str = "info",
+        rotate_mb: float = 64.0,
+        fsync: bool = False,
+        signer_key: Optional[bytes] = None,
+        queue_size: int = 4096,
+        default_ctx: Optional[Dict[str, Any]] = None,
+        stdout_fallback: bool = True,
+        name: str = "jsonlogger",
+    ):
+        self._name = name
+        self._path = path
+        self._rotate_bytes = int(rotate_mb * 1024 * 1024)
+        self._fsync = fsync
+        self._key = signer_key
+        self._default_ctx = dict(default_ctx or {})
+        self._stdout_fallback = stdout_fallback
+        self._q: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=queue_size)
+        self._lvl = self._coerce_level(level)
+        self._lock = threading.Lock()
+        self._f: Optional[io.TextIOBase] = None
+        self._head_digest: Optional[str] = None
+        self._stop = False
+        self._open_sink()
+        t = threading.Thread(target=self._worker, name=f"{name}-writer", daemon=True)
+        t.start()
+
+    # --------------- basics ---------------
+    def _coerce_level(self, s: str) -> int:
+        m = {"debug": 10, "info": 20, "warn": 30, "error": 40}
+        return m.get(s.lower(), 20)
+
+    def _open_sink(self) -> None:
+        if not self._path:
+            return
+        os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
+        self._f = open(self._path, "a", encoding="utf-8")
+
+    def _needs_rotate(self) -> bool:
+        if not self._path or not self._f:
+            return False
+        try:
+            return self._f.tell() >= self._rotate_bytes
+        except Exception:
+            try:
+                return os.path.getsize(self._path) >= self._rotate_bytes
+            except Exception:
+                return False
+
+    def _rotate(self) -> None:
+        if not self._path or not self._f:
+            return
+        ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S")
+        rotated = f"{self._path}.{ts}.rotated"
+        # write terminal footer
+        footer = {"ts": _iso_utc(), "terminal": True, "head": self._head_digest}
+        self._write_line(self._decorate("terminal", footer), raw=True)
+        self._f.flush()
+        os.replace(self._path, rotated)
+        # reopen and write continuation header
+        self._f = open(self._path, "a", encoding="utf-8")
+        header = {"ts": _iso_utc(), "continued_from": self._head_digest}
+        meta = self._decorate("continuation", header)
+        self._write_line(meta, raw=True)
+        self._head_digest = meta.get("digest")
+
+    def _sign(self, prev: Optional[str], payload: Dict[str, Any]) -> Optional[str]:
+        if not self._key:
+            return None
+        body = {"prev": prev, "payload": payload}
+        s = json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        return hmac.new(self._key, s, hashlib.sha256).hexdigest()
+
+    def _decorate(self, kind: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        rec = {
+            "ts": _iso_utc(),
+            "kind": kind,
+            "payload": payload,
+            "prev": self._head_digest,
+        }
+        dg = self._sign(self._head_digest, payload)
+        if dg:
+            rec["digest"] = dg
+        return rec
+
+    def _write_line(self, rec: Dict[str, Any], raw: bool = False) -> None:
+        line = json.dumps(rec, separators=(",", ":")) + "\n"
+        if self._f:
+            self._f.write(line)
+            if self._fsync:
+                self._f.flush()
+                os.fsync(self._f.fileno())
+        elif self._stdout_fallback:
+            # stdio fallback
+            try:
+                import sys
+                sys.stdout.write(line)
+                sys.stdout.flush()
+            except Exception:
+                pass
+        if not raw:
+            # update head only for regular records
+            if "digest" in rec:
+                self._head_digest = rec["digest"]
+
+    def _worker(self) -> None:
+        while not self._stop:
+            rec = self._q.get()
+            try:
+                with self._lock:
+                    if self._needs_rotate():
+                        self._rotate()
+                    self._write_line(rec)
+            except Exception:
+                # swallow logger errors; never crash the host
+                pass
+            finally:
+                self._q.task_done()
+
+    # --------------- public api ---------------
+    def _emit(self, level: str, msg: str, *, ctx: Optional[Dict[str, Any]] = None, **fields: Any) -> None:
+        # drop if below level
+        lvl_num = self._coerce_level(level)
+        if lvl_num < self._lvl:
+            return
+        payload = {
+            "level": level,
+            "logger": self._name,
+            "message": msg,
+            "ts": _iso_utc(),
+        }
+        # merge contexts shallowly
+        merged = dict(self._default_ctx)
+        if ctx:
+            for k, v in ctx.items():
+                merged[k] = v
+        if merged:
+            payload["ctx"] = merged
+        if fields:
+            payload["fields"] = fields
+        rec = self._decorate("log", payload)
+        try:
+            self._q.put_nowait(rec)
+        except queue.Full:
+            # last resort: drop oldest and insert
+            try:
+                _ = self._q.get_nowait()
+                self._q.task_done()
+            except Exception:
+                pass
+            try:
+                self._q.put_nowait(rec)
+            except Exception:
+                pass
+
+    def debug(self, msg: str, *, ctx: Optional[Dict[str, Any]] = None, **fields: Any) -> None:
+        self._emit("debug", msg, ctx=ctx, **fields)
+
+    def info(self, msg: str, *, ctx: Optional[Dict[str, Any]] = None, **fields: Any) -> None:
+        self._emit("info", msg, ctx=ctx, **fields)
+
+    def warn(self, msg: str, *, ctx: Optional[Dict[str, Any]] = None, **fields: Any) -> None:
+        self._emit("warn", msg, ctx=ctx, **fields)
+
+    def error(self, msg: str, *, ctx: Optional[Dict[str, Any]] = None, **fields: Any) -> None:
+        self._emit("error", msg, ctx=ctx, **fields)
+
+    # helpers for common structured events
+    def event(self, name: str, **fields: Any) -> None:
+        self.info(f"event:{name}", **fields)
+
+    def metric(self, name: str, value: float, **fields: Any) -> None:
+        self.info("metric", metric=name, value=float(value), **fields)
+
+    def stop(self) -> None:
+        self._stop = True
+        try:
+            self._q.join()
+        except Exception:
+            pass
+        if self._f:
+            try:
+                self._f.flush()
+                if self._fsync:
+                    os.fsync(self._f.fileno())
+                self._f.close()
+            except Exception:
+                pass
 
 
 # pad 0001
