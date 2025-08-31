@@ -370,5 +370,45 @@ https://colab.research.google.com/drive/1i7HO-SlG5scLUgGQdN-yZF-Zjp7A-hBM?usp=sh
    }
  }
 }
+@@ class TernaryServerFirewall:
+     def __init__(...):
++        self._zero_state_streak = 0
++        self._zero_state_tokens = 12
++        self._zero_state_last_reap = time.monotonic()
+@@
+     def _temporal_snapshot(self) -> Dict[str, Any]:
+@@
+-        if len(self._ts_hist) >= 2:
++        if len(self._ts_hist) >= 2:
+             dt = self._ts_hist[-1] - self._ts_hist[0]
+-            rate = len(self._ts_hist) / dt if dt > 0 else 0.0
++            rate = len(self._ts_hist) / dt if dt > 0 else 0.0
++        # zero-state accounting
++        now = time.monotonic()
++        if now - self._zero_state_last_reap > 60:
++            self._zero_state_tokens = min(12, self._zero_state_tokens + 6)
++            self._zero_state_last_reap = now
++        zero_hit = (rate == 0.0 and len(self._ts_hist) >= 2)
++        if zero_hit:
++            self._zero_state_streak += 1
++            if self._zero_state_tokens > 0:
++                self._zero_state_tokens -= 1
++            if self._zero_state_streak in (8,16,32):
++                self.set_temperature(min(self._temperature + 0.05, 1.0))
++            time.sleep(random.uniform(0.0, 0.004))
++        else:
++            self._zero_state_streak = max(0, self._zero_state_streak - 2)
+@@
+     def metrics(self) -> Dict[str, Any]:
+@@
+         return {
+             "id": self._id,
+@@
+             "ingress_rate_hz": rate,
+             "chain_head": (self._last_digest or "")[:16],
+             "hs_tokens": self._hs_tokens,
++            "zero_state_streak": self._zero_state_streak,
++            "zero_state_tokens": self._zero_state_tokens,
+         }
 
 
