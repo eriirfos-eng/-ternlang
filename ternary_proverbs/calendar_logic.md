@@ -56,3 +56,15 @@ The Reset: The "Day of the Void" is a fundamental principle. It is a dedicated p
 This system is an intentional architecture for a meaningful life, offering not just a way to track time, but a set of practices for personal and cosmic alignment.
 
 For more on philosophical concepts of cosmic frameworks, you might find this video on cosmic norms interesting.
+
+Numerus Cycles Overview
+Cycle Name	Duration
+Calendar Year	365 days
+Decade	3,650 days
+Century	36,500 days
+Millennium	365,000 days
+Great Year	3,650 years
+Season	14,600 years
+Full Cosmic Cycle	29,200 years
+Universal Generation	87,600 years
+
