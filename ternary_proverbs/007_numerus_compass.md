@@ -1,7 +1,3 @@
-⬛ alright, here’s your **numerus compass protocol** — a tiny, runnable diagnostic that maps your current inner state to the ladder and turns that number into the decision-tree modulator. keep it simple, keep it honest.
-
----
-
 # Proverb 007 — Numerus Compass Protocol
 
 **filename:** 007\_numerus-compass.md
@@ -138,5 +134,3 @@ if __name__ == "__main__":
 * run `diagnose([...])`. take the returned mode as your **modulator**.
 * apply the `action` string to your next concrete decision.
 * re-run when your inner weather changes.
-
-🟩 if you want a leaner, pen-and-paper version, i can give you a 1-page checklist grid so you can circle cues and read the winning number at a glance.
