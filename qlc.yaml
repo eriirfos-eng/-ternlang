@@ -1,0 +1,11 @@
+# qlc.yaml
+enabled: true
+start_utc: "2025-09-01T12:27:38Z"
+confirmed_utc: "2025-09-01T12:27:46Z"
+calendar_anchor_utc: "2025-03-15T00:00:00Z"   # Numerus year start
+void_day_mm_dd: "09-14"                       # Day of the Void in Gregorian
+epsilon_sync: 0.03                             # 3% phase window for “on-beat”
+weights:
+  w3: 1.0
+  w6: 1.0
+  w9: 1.0
