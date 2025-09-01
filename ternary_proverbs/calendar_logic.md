@@ -19,30 +19,30 @@ The Reset Day: A single, additional day is inserted into the middle of the year,
 This day, the "Day of the Void," is designated as 0 Nihil. It is a moment for surrendering all gains and losses, resetting consciousness, and offering the past year's experiences back to the source before the next half of the year begins. This transforms a functional calendar into a spiritual practice, a day for reflection and detachment from the temporal flow.
 
 The Cosmic Cycles
-The larger cosmic timetable is built on the numbers 3, 6, and 9, as well as the new "Great Year" unit.
+The larger cosmic timetable is now built entirely on the 365-day year, integrating the calendar and cosmic calculations into a single, cohesive system. The numbers 3, 6, and 9 remain as the foundation of the grand cycles.
 
-Year: 369 days. (This is a symbolic unit for cosmic calculations, not for daily use.)
+Year: 365 days. (This is the unified unit for all calculations.)
 
-Decade: 10 years = 3,690 days.
+Decade: 10 years = 3,650 days.
 
-Century: 100 years = 36,900 days.
+Century: 100 years = 36,500 days.
 
-Millennium: 1,000 years = 369,000 days.
+Millennium: 1,000 years = 365,000 days.
 
 Grand Cycles
-These cycles are based on the corrected math of the system, where a "Great Year" is a unit of 3,690 solar years, not days.
+These cycles are based on the corrected math of the system, where a "Great Year" is a unit of 3,650 solar years, derived from the new decade length.
 
-Great Year: 3,690 years. A major cosmic cycle. This period represents a single, monumental phase of development, a turning point for civilizations and species, much like a single year in the life of a person.
+Great Year: 3,650 years. A major cosmic cycle, representing one decade of cosmic time for every one year of human time.
 
-1 Season: A cycle of 4 Great Years, or 4×3,690=14,760 years. This represents a complete seasonal turn of the cosmos, from one state to another. It is a distinct era with its own energetic signature, akin to spring, summer, autumn, and winter.
+1 Season: A cycle of 4 Great Years, or 4×3,650=14,600 years. This represents a complete seasonal turn of the cosmos, from one state to another. It is a distinct era with its own energetic signature, akin to spring, summer, autumn, and winter.
 
 Full Cosmic Cycle: A cycle of 2 Seasons, completing a full grand cycle.
 
-2×14,760=29,520 years. This is the ultimate "life, death, rebirth" cycle of the entire system, a complete universal story, or a "grand breath of the cosmos." The sum of its digits (2+9+5+2+0=18→9) symbolizes ultimate completion and universal wisdom.
+2×14,600=29,200 years. This is the ultimate "life, death, rebirth" cycle of the entire system, a complete universal story, or a "grand breath of the cosmos." The sum of its digits (2+9+2+0+0=13→4) signifies the structured foundation of this new cosmic reality.
 
 Universal Generation: 3 Cosmic Cycles.
 
-3×29,520=88,560 years. This represents one full cycle of universal consciousness, from creation to dissolution and back again. The number 8 in the final sum (8+8+5+6+0=27→9) symbolizes the ultimate completion (Ennead), and the 5 (Pentad) signifies the human element at the center of this cosmic process. This generation is the highest-level narrative of the framework.
+3×29,200=87,600 years. This represents one full cycle of universal consciousness, from creation to dissolution and back again. The sum of its digits (8+7+6+0+0=21→3) signifies the ultimate renewal and synthesis inherent in this process. This generation is the highest-level narrative of the framework.
 
 The Philosophy of the Framework
 The framework posits that the cosmos is not a series of arbitrary events but a system of nested cycles, each with a specific purpose and rhythm.
