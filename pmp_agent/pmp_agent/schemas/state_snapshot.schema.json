@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Conversation State Snapshot",
+  "type": "object",
+  "properties": {
+    "conversation_id": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "entered_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "cooldown_until": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    },
+    "strikes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "reasons": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "user_ack": {
+      "type": "boolean"
+    },
+    "direction": {
+      "type": "string"
+    },
+    "history_window": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "conversation_id",
+    "state",
+    "entered_at",
+    "strikes",
+    "direction",
+    "history_window"
+  ]
+}

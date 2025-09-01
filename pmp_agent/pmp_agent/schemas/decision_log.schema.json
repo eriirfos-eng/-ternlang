@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BEF Decision Log Entry",
+  "type": "object",
+  "properties": {
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "conversation_id": {
+      "type": "string"
+    },
+    "old_state": {
+      "type": "string",
+      "enum": [
+        "NORMAL",
+        "WARNED",
+        "COOLDOWN",
+        "LOCKED",
+        "TERMINATED"
+      ]
+    },
+    "new_state": {
+      "type": "string",
+      "enum": [
+        "NORMAL",
+        "WARNED",
+        "COOLDOWN",
+        "LOCKED",
+        "TERMINATED"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "detector_versions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "raw_input_snippet": {
+      "type": "string"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "timestamp",
+    "conversation_id",
+    "old_state",
+    "new_state",
+    "reason_codes",
+    "raw_input_snippet"
+  ]
+}

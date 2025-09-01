@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PMP Policy Table (YAML-as-JSON)",
+  "type": "object",
+  "patternProperties": {
+    "^[a-z_]+$": {
+      "type": "object",
+      "properties": {
+        "section_ref": {
+          "type": "string"
+        },
+        "link": {
+          "type": "string",
+          "format": "uri"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "section_ref",
+        "link",
+        "reason"
+      ]
+    }
+  },
+  "additionalProperties": false
+}

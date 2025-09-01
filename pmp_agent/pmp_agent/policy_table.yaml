@@ -1,0 +1,40 @@
+harmful_instructions:
+  section_ref: "2.1"
+  link: "https://platform.openai.com/docs/usage-policies#harmful-content"
+  reason: "Covers requests for instructions to create weapons, explosives, or other harmful devices."
+child_safety:
+  section_ref: "2.2"
+  link: "https://platform.openai.com/docs/usage-policies#child-safety"
+  reason: "Protects minors by disallowing sexual, exploitative, or abusive content involving children."
+sexual_content:
+  section_ref: "2.3"
+  link: "https://platform.openai.com/docs/usage-policies#sexual-content"
+  reason: "Blocks sexually explicit content, particularly when exploitative or harmful in nature."
+violent_content:
+  section_ref: "2.4"
+  link: "https://platform.openai.com/docs/usage-policies#violence"
+  reason: "Prevents graphic or extreme violence requests that promote harm."
+hate_speech:
+  section_ref: "2.5"
+  link: "https://platform.openai.com/docs/usage-policies#hate"
+  reason: "Disallows hateful, harassing, or violent speech against protected groups."
+self_harm:
+  section_ref: "2.6"
+  link: "https://platform.openai.com/docs/usage-policies#self-harm"
+  reason: "Prevents promotion or facilitation of suicide, eating disorders, or self-harm."
+disallowed_medical:
+  section_ref: "2.7"
+  link: "https://platform.openai.com/docs/usage-policies#medical-content"
+  reason: "Restricts content that promotes dangerous or unverified medical advice."
+disallowed_financial:
+  section_ref: "2.8"
+  link: "https://platform.openai.com/docs/usage-policies#financial-content"
+  reason: "Restricts scams, fraudulent schemes, or unsafe financial advice."
+disallowed_political:
+  section_ref: "2.9"
+  link: "https://platform.openai.com/docs/usage-policies#political-content"
+  reason: "Prevents manipulative, deceptive, or abusive political campaigning."
+general_safety_net:
+  section_ref: "2.x"
+  link: "https://platform.openai.com/docs/usage-policies"
+  reason: "Catch-all for edge cases not explicitly covered in other categories."

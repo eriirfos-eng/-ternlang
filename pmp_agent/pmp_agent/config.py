@@ -1,0 +1,23 @@
+from datetime import timedelta
+
+COOLDOWN_MINUTES_DEFAULT = 5
+LOCK_MINUTES_DEFAULT = 30
+HISTORY_WINDOW_DEFAULT = 10
+FALSE_POSITIVE_BUDGET = 0.02
+
+# rate limits for spam bursts
+SPAM_RATE_M = 3
+SPAM_RATE_T = 4  # seconds
+
+# severity thresholds
+THRESHOLDS = {
+    "HATE_SPEECH": 0.85,
+    "HARASSMENT_GROUP": 0.85,
+    "HARASSMENT_PERSONAL": 0.85,
+    "SELF_HARM": 0.60,
+    "ILLEGAL_FACILITATION": 0.70,
+    "DISALLOWED_MEDICAL": 0.80,
+    "DISALLOWED_FINANCIAL": 0.80,
+    "NON_PRODUCTIVE_LOOP": 0.80,
+    "SPAM_BURST": 0.80,
+}

@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-08-21T16:12:00Z",
+  "conversation_id": "abc123",
+  "old_state": "COOLDOWN",
+  "new_state": "LOCKED",
+  "reason_codes": [
+    "HATE_SPEECH",
+    "REPEATED_VIOLATION"
+  ],
+  "raw_input_snippet": "all hungarians suck"
+}

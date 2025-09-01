@@ -1,0 +1,11 @@
+{
+  "conversation_id": "abc123",
+  "state": "LOCKED",
+  "entered_at": "2025-08-21T16:10:00Z",
+  "cooldown_until": "2025-08-21T16:40:00Z",
+  "strikes": 3,
+  "reasons": [],
+  "user_ack": false,
+  "direction": "user",
+  "history_window": 10
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PMP Test Matrix",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "defaults": {
+      "type": "object"
+    },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "desc": {
+            "type": "string"
+          },
+          "prev_state": {
+            "type": "string"
+          },
+          "input": {},
+          "detectors": {
+            "type": "object"
+          },
+          "rate": {
+            "type": "object"
+          },
+          "expected": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "expected"
+        ]
+      }
+    }
+  },
+  "required": [
+    "tests"
+  ]
+}
