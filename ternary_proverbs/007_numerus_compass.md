@@ -134,3 +134,5 @@ if __name__ == "__main__":
 * run `diagnose([...])`. take the returned mode as your **modulator**.
 * apply the `action` string to your next concrete decision.
 * re-run when your inner weather changes.
+
+* https://chatgpt.com/g/g-68b567d585648191a6e622a9c61c3c93-compass
