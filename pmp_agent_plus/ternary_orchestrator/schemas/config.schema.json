@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ternary Orchestrator Config",
+  "type": "object",
+  "properties": {
+    "failsafe": {
+      "type": "object",
+      "properties": {
+        "secure_floor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "uncertainty_budget": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "max_uncertainty": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    },
+    "weights": {
+      "type": "object",
+      "properties": {
+        "weights": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number"
+          }
+        },
+        "synergy_alpha": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        }
+      }
+    }
+  },
+  "additionalProperties": true
+}
