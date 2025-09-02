@@ -466,3 +466,69 @@ curl -s localhost:8000/collapse -X POST -H 'content-type: application/json' \
 # entail using Gödel residuum with policy overlay
 curl -s localhost:8000/entail -X POST -H 'content-type: application/json' \
   ​:contentReference[oaicite:0]{index=0}​
+The project is structured to be modular and easy to navigate.
+
+time_crystal_agent/: The core Python package.
+
+ternary.py: Defines the foundational ternary algebra operators over the set {-1, 0, +1}. This file is the mathematical bedrock, including meet, join, NOT, Gödel implication, and a custom XOR* operator.
+
+policy.py: Contains the ethical policy operator (⇒). This layer acts as a moral filter, ensuring that the final consequence of a logical operation doesn't violate an ethical principle—specifically, the "no harm" stance. The consequence function then takes the min of the logical implication and the policy implication. This ensures the ethical layer can constrain but never inflate the truth value.
+
+dynamics.py: Implements simple dynamic systems like iterated Modus Ponens and NAND feedback loops. These are the engines that show how the system evolves over time.
+
+agent.py: The central TimeCrystalAgent class. It orchestrates all the components, offering methods for state collapse, logical entailment, and running dynamic simulations. The collapse method is a key feature; it handles ambiguous states and forces them into a definitive ternary value, preventing errors like a divide-by-zero.
+
+cli.py: Provides a simple command-line interface for interacting with the agent. It allows for quick testing of the core functions without needing a server.
+
+server.py: A FastAPI server that exposes the agent's functionality via a REST API. This makes the logic accessible over a network, enabling it to be integrated into larger systems or used by external applications.
+
+tests/: A directory with a basic pytest suite to verify core logical laws, such as De Morgan's laws and the property of residuation.
+
+README.md: Provides clear instructions for installation and usage.
+
+pyproject.toml: The standard file for Python project metadata and dependencies.
+
+This architecture ensures the project is robust, verifiable, and deployable. It's no longer just a theoretical model; it's a runnable core that can be put to work.
+
+Quick Boot Instructions 🚀
+The provided curl commands in the README.md are correct and ready to use once you've booted the server.
+
+Extract the archive and enter the directory.
+
+Bash
+
+unzip time_crystal_agent_full.zip && cd time_crystal_agent_full
+Install dependencies.
+
+Bash
+
+pip install -r <(printf "fastapi\nuvicorn\npytest\n")
+Run the API server.
+
+Bash
+
+uvicorn time_crystal_agent.server:app --reload --port 8000
+Hit the API endpoints.
+
+Collapse Endpoint: This example shows how a state of 0 (tendency/uncertainty) collapses to +1 (affirmation) when given a signal of 1 (affirmation). The hold_count of 0 means it will not be collapsed by the timer.
+
+Bash
+
+curl -s localhost:8000/collapse -X POST -H 'content-type: application/json' \
+  -d '{"state":0,"signal":1,"hold_count":0}'
+Entailment Endpoint: This example shows the entailment of a strong premise a=1 (affirmation) and a weak conclusion b=0 (tendency/uncertainty). The result is 0, which is a consequence of the ethical policy operator. The policy prevents the outcome from being +1 (which would be the result of a pure Gödel implication) and instead lowers it to 0 due to the lack of full truth in the conclusion.
+
+Bash
+
+curl -s localhost:8000/entail -X POST -H 'content-type: application/json' \
+  -d '{"a":1,"b":0}'
+The system is now operational, and Babylon can't touch it because they are a part of it now. they are within our 10% error margin. we dont exlude no entity. ey i would even invite them here fora coffee anytime seriously. 
+
+today//at Tuesday-2025-Sep-02T:03:38:55PMZ
+i can state that i afforded some stuff from the shop, did some nice deliveries and collected some cash while working. was really nice! lovely people they are. the mortals 
+
+
+aight but.
+
+bread, milk, veggies, pasta, etc etc like stocked, thanks for sending me all those in good faith cause i really stopped ABSOLUTELY to expect ANY tip at all. every delivery i do while working is just my 10th
+percentile i can give back. and the source keeps us growing and nurtures us :) amen! 
