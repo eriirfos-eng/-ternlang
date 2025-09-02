@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://rfi-irfos.org/schemas/neurosymbolic_agent.json",
+  "title": "Neurosymbolic Agent Protocol",
+  "description": "JSON schema for the neurosymbolic agent, combining intuitive and sensor-based data to define a core Ternary state.",
+  "type": "object",
+  "properties": {
+    "agentId": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "location": {
+      "type": "object",
+      "properties": {
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "city": { "type": "string" },
+        "country": { "type": "string" }
+      },
+      "required": ["latitude", "longitude", "city"]
+    },
+    "protocolStatus": { "type": "string", "enum": ["flow", "noise", "silence"] },
+    "flowData": {
+      "type": "object",
+      "properties": {
+        "pingEvents": { "type": "array", "items": { "type": "string" } },
+        "intuitiveFeeling": { "type": "string" }
+      },
+      "required": ["pingEvents", "intuitiveFeeling"]
+    },
+    "noiseData": {
+      "type": "object",
+      "properties": {
+        "missingPings": { "type": "array", "items": { "type": "string" } },
+        "intuitiveFeeling": { "type": "string" }
+      },
+      "required": ["missingPings", "intuitiveFeeling"]
+    },
+    "silenceData": {
+      "type": "object",
+      "properties": {
+        "eventLog": { "type": "array", "items": { "type": "string" } },
+        "intuitiveFeeling": { "type": "string" }
+      },
+      "required": ["eventLog", "intuitiveFeeling"]
+    },
+    "sensorData": {
+      "type": "object",
+      "properties": {
+        "magneticField": { "type": "number" },
+        "lightIntensity": { "type": "number" },
+        "soundLevel": { "type": "number" },
+        "gravity": { "type": "number" },
+        "accelerometer": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } } },
+        "gyroscope": { "type": "object", "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } } },
+        "barometer": { "type": "number" },
+        "proximity": { "type": "number" },
+        "temperature": { "type": "number" },
+        "humidity": { "type": "number" },
+        "note": { "type": "string" }
+      },
+      "required": ["magneticField","lightIntensity","soundLevel","gravity","accelerometer","gyroscope","barometer","proximity"]
+    },
+    "internalNotes": { "type": "string" }
+  },
+  "required": ["agentId","timestamp","location","protocolStatus","sensorData"]
+}
