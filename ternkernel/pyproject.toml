@@ -1,0 +1,13 @@
+[project]
+name = "ternkernel"
+version = "0.1.0"
+description = "Drag-and-drop ternary kernel with Gödel residuum, policy clamp, scheduler, event bus, CLI, and FastAPI API."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["fastapi", "uvicorn", "pydantic"]
+
+[project.urls]
+homepage = "https://example.org/ternkernel"
+
+[tool.ruff]
+line-length = 100
