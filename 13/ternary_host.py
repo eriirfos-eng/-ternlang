@@ -6,17 +6,24 @@ from copy import deepcopy
 from pathlib import Path
 
 import os
-from azure.ai.inference import ChatCompletionsClient
-from azure.ai.inference.models import SystemMessage, UserMessage
-from azure.core.credentials import AzureKeyCredential
+from openai import OpenAI
 
-endpoint = "https://models.github.ai/inference"
-model = "openai/gpt-5"
-token = os.environ["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"]
+client = OpenAI(
+    base_url="https://router.huggingface.co/v1",
+    api_key=os.environ["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"],
+)
 
-client = ChatCompletionsClient(
-    endpoint=endpoint,
-    credential=AzureKeyCredential(token),
+completion = client.chat.completions.create(
+    model="openai/gpt-oss-120b:together",
+    messages=[
+        {
+            "role": "user",
+            "content": "What is the capital of France?"
+        }
+    ],
+)
+
+print(completion.choices[0].message)
 
 
 MASTER_DOCS = {
