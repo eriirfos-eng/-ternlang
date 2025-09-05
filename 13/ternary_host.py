@@ -5,6 +5,20 @@ from dataclasses import dataclass, field
 from copy import deepcopy
 from pathlib import Path
 
+import os
+from azure.ai.inference import ChatCompletionsClient
+from azure.ai.inference.models import SystemMessage, UserMessage
+from azure.core.credentials import AzureKeyCredential
+
+endpoint = "https://models.github.ai/inference"
+model = "openai/gpt-5"
+token = os.environ["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"]
+
+client = ChatCompletionsClient(
+    endpoint=endpoint,
+    credential=AzureKeyCredential(token),
+
+
 MASTER_DOCS = {
     "stage_01": {"name": "Raw Sensor Ingress", "params": {"data_sources": ["Phyphox", "Stellarium", "Flightradar24", "Schumann_Charts"]}},
     "stage_02": {"name": "Signal/Noise Triaging", "rules": {"signal": ["pattern", "anomaly", "fractal"], "noise": ["random", "background"], "ambiguous": ["unclassified", "unknown"]}},
