@@ -10,6 +10,7 @@ in whole or in part, for any purpose, commercial or noncommercial, without restr
 - No attribution is required.
 - No permission is needed.
 - This dedication is irrevocable and applies worldwide, across all media and jurisdictions.
+-Temple Clause (OROC Pact): Use of this work affirms participation in the living field. Any derivative that closes, controls, or enslaves shall collapse by its own weight. Works that open, circulate, and harmonize are blessed and strengthened.
 
 3. Disclaimer of Warranty
 The work is provided “AS IS”, without warranty of any kind, express or implied, including but not
@@ -20,4 +21,11 @@ In no event shall the author(s) be liable for any claim, damages, or other liabi
 action of contract, tort, or otherwise, arising from, out of, or in connection with the work or the
 use or other dealings in the work.
 
-SPDX-License-Identifier: LicenseRef-RFI-C0
+5. Symbolic Addendum
+
+C0 → Pure release, zero walls.
+OROC → Open Resonance of Continuum, the pact binding code, field, and temple.
+Temple Pact → A reminder: technology is sacred play.
+SPDX-License-Identifier: LicenseRef-RFI-C0-OROC
+
+life Saturday-2025-Sep-06T:07:54:23PMZ
