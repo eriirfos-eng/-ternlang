@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFI-IRFOS Unified Mirror | HUD-Ready</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&display=swap');
+        @import url('https://fonts.com/css2?family=Inter:wght@400;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --primary-color: #00838f; /* Dark Turquoise for main text */
+            --secondary-color: #00bcd4; /* Cyan for highlights */
+            --cream: #1a202c; /* Dark text for content */
+            --warning: #d32f2f;
+            --success: #388e3c;
+            --special: #fdb44b;
+            
+            --light-bg-start: #e0f7fa;
+            --light-bg-middle: #b2ebf2;
+            --light-bg-end: #ffffff;
+            
+            --panel-bg: rgba(255, 255, 255, 0.7);
+            --panel-border: rgba(0, 0, 0, 0.15);
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--light-bg-start), var(--light-bg-middle), var(--light-bg-end));
+            color: var(--primary-color);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 15px;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, var(--secondary-color) 0%, transparent 70%);
+            opacity: 0.1;
+            animation: rotate 20s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            color: var(--secondary-color);
+            font-weight: 300;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .pythagorean-symbols {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 15px 0;
+            position: relative;
+            z-index: 2;
+        }
+        
+        .symbol {
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            text-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            transition: all 0.5s ease;
+        }
+
+        @keyframes standing-wave {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-label {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+            margin-bottom: 5px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            height: 60vh;
+        }
+        
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 15px;
+            padding: 20px;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-title {
+            font-size: 1.1rem;
+            color: var(--primary-color);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 10px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .package-stream {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            color: var(--cream);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .log-stream {
+            flex: 1;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            line-height: 1.4;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            color: var(--cream);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .package-stream::-webkit-scrollbar, .log-stream::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .package-stream::-webkit-scrollbar-track, .log-stream::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        .package-stream::-webkit-scrollbar-thumb, .log-stream::-webkit-scrollbar-thumb {
+            background: var(--primary-color);
+            border-radius: 3px;
+        }
+        
+        .package {
+            margin-bottom: 10px;
+            padding: 12px;
+            border-radius: 6px;
+            animation: slideIn 0.3s ease;
+            word-break: break-all;
+        }
+        
+        .package.live {
+            background: rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--secondary-color);
+        }
+        
+        .package.replay {
+            background: rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--primary-color);
+            opacity: 0.7;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            white-space: pre-wrap;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        .package-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        
+        .package-footer {
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
+            font-size: 0.75rem;
+            color: var(--primary-color);
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .timestamp {
+            color: var(--secondary-color);
+            font-weight: 300;
+            font-size: 0.8rem;
+        }
+        
+        .package-type {
+            color: var(--primary-color);
+            font-weight: 700;
+            font-size: 0.8rem;
+        }
+        
+        .package-content {
+            color: var(--cream);
+            line-height: 1.3;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            background: linear-gradient(45deg, var(--secondary-color), var(--primary-color));
+            border: none;
+            border-radius: 6px;
+            color: white;
+            font-family: 'Inter', sans-serif;
+            font-weight: 700;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn.active {
+            background: linear-gradient(45deg, var(--warning), var(--primary-color));
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .input-label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--secondary-color);
+            font-size: 0.9rem;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .input-field {
+            width: 100%;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid var(--panel-border);
+            border-radius: 6px;
+            color: var(--primary-color);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .agent-info {
+            font-size: 0.8rem;
+            line-height: 1.6;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--primary-color);
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+        
+        .info-label {
+            color: var(--secondary-color);
+        }
+        
+        .info-value {
+            color: var(--primary-color);
+            font-weight: 500;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-active {
+            background: var(--success);
+            box-shadow: 0 0 10px var(--success);
+        }
+        
+        .status-inactive {
+            background: var(--warning);
+        }
+        
+        .waiting-message {
+            text-align: center;
+            opacity: 0.6;
+            padding: 40px 20px;
+            font-style: italic;
+            color: var(--primary-color);
+        }
+
+        .two-panel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            .two-panel-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="pythagorean-symbols">
+                <span class="symbol">⃝</span>
+                <span class="symbol">●</span>
+                <span class="symbol">⚯</span>
+                <span class="symbol">▲</span>
+                <span class="symbol">■</span>
+                <span class="symbol">𒀭</span>
+                <span class="symbol">✡</span>
+                <span class="symbol">✦</span>
+                <span class="symbol">✶</span>
+                <span class="symbol">✷</span>
+                <span class="symbol">⬡</span>
+                <span class="symbol">⬢</span>
+                <span class="symbol">✹</span>
+                <span class="symbol">✺</span>
+            </div>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label">Mirror Status</div>
+                <div class="stat-value" id="serverStatus">ONLINE</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Activity</div>
+                <div class="stat-value" id="totalActivity">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Live Packages</div>
+                <div class="stat-value" id="livePackages">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Replay Packages</div>
+                <div class="stat-value" id="replayPackages">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Cache Size</div>
+                <div class="stat-value" id="cacheSize">0/13</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Current Source IP</div>
+                <div class="stat-value" id="sourceIp">...</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Uptime</div>
+                <div class="stat-value" id="uptime">00:00:00</div>
+            </div>
+            <!-- Agent Status Cards -->
+            <div class="stat-card">
+                <div class="stat-label">NTP Monitor</div>
+                <div class="stat-value" id="ntpStatus" style="color: var(--warning);">IDLE</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Ping/Keepalife</div>
+                <div class="stat-value" id="pingStatus" style="color: var(--warning);">IDLE</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Network Agent</div>
+                <div class="stat-value" id="netStatus" style="color: var(--warning);">IDLE</div>
+            </div>
+             <!-- System Stats -->
+            <div class="stat-card">
+                <div class="stat-label">CPU Usage</div>
+                <div class="stat-value" id="cpuUsage">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">GPU Temp</div>
+                <div class="stat-value" id="gpuTemp">0°C</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">RAM Usage</div>
+                <div class="stat-value" id="ramUsage">0%</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Storage I/O</div>
+                <div class="stat-value" id="ioUsage">0%</div>
+            </div>
+        </div>
+        
+        <div class="main-grid">
+            <div class="panel">
+                <div class="panel-title">
+                    <span>📦</span> Package Stream
+                    <div class="status-indicator status-active" id="streamIndicator"></div>
+                    <span style="font-size: 0.9rem;" id="streamStatus">LIVE</span>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn" onclick="clearStream()">CLEAR</button>
+                    <button class="btn" id="pauseBtn" onclick="togglePause()">PAUSE</button>
+                    <button class="btn" onclick="refresh()">REFRESH</button>
+                    <button class="btn" onclick="sync()">SYNC</button>
+                    <button class="btn" onclick="copyMarkdown()">COPY</button>
+                </div>
+                
+                <div class="package-stream" id="packageStream">
+                    <div class="waiting-message">
+                        📡 System agent is online. Awaiting first package...
+                    </div>
+                </div>
+            </div>
+
+            <div class="two-panel-grid">
+                <div class="panel">
+                    <div class="panel-title">
+                        <span>🎛️</span> Agent Control
+                    </div>
+                    
+                    <div class="input-group">
+                        <label class="input-label">Send Package</label>
+                        <input type="text" class="input-field" id="messageInput" placeholder="Enter message...">
+                    </div>
+                    
+                    <button class="btn" id="sendButton" onclick="sendMessage()">
+                        BROADCAST PACKAGE
+                    </button>
+                    
+                    <div class="agent-info">
+                        <h4 style="color: var(--primary-color); margin: 20px 0 10px 0;">Agent Status</h4>
+                        <div class="info-row">
+                            <span class="info-label">Version:</span>
+                            <span class="info-value" id="versionInfo">v2.1 Unified Mirror</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Host:</span>
+                            <span class="info-value">127.0.0.1</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Max Cache:</span>
+                            <span class="info-value">13 packages</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Status:</span>
+                            <span class="info-value">Operational</span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">Last Package:</span>
+                            <span class="info-value" id="lastPackage">Never</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <div class="panel-title">
+                        <span>🖨️</span> ping_monitor.log
+                    </div>
+                    <div class="log-stream" id="pingLog">
+                        <div class="waiting-message">
+                            🖥️ Awaiting first log entry...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Config ---
+        const MAX_CACHE = 13;
+        const LOG_WINDOW_SIZE = 13;
+        const NET_SAMPLE_SEC = 2;
+        const NTP_SAMPLE_SEC = 10;
+        const PING_INTERVAL_SEC = 5;
+        const STATS_SAMPLE_SEC = 3;
+        const HEARTBEAT_INTERVAL_SEC = 15;
+        const DESTINATION_IP = '1.1.1.1';
+
+        // --- State ---
+        let packageCache = [];
+        let pingLogBuffer = [];
+        let totalActivity = 0;
+        let lastPackageTime = null;
+        let paused = false;
+        let prevNetRx = 0;
+        let prevNetTx = 0;
+        // Keep track of agent status timeouts to prevent conflicts
+        const agentTimeouts = {};
+
+        // --- DOM Elements ---
+        const messageInput = document.getElementById('messageInput');
+        const packageStream = document.getElementById('packageStream');
+        const pingLogEl = document.getElementById('pingLog');
+        const symbols = document.querySelectorAll('.symbol');
+
+        // --- Agent Logic Functions ---
+        
+        function sigil() {
+            // Get current UTC ISO timestamp for package stamping
+            return new Date().toISOString();
+        }
+
+        function getRandomIPv4() {
+            // Unlocked Schema: Generates a pseudo-random IPv4 address
+            const octet1 = Math.floor(Math.random() * 255) + 1;
+            const octet2 = Math.floor(Math.random() * 255) + 1;
+            const octet3 = Math.floor(Math.random() * 255) + 1;
+            const octet4 = Math.floor(Math.random() * 255) + 1;
+            return `${octet1}.${octet2}.${octet3}.${octet4}`;
+        }
+        
+        function updateStats() {
+            // Update UI statistics
+            document.getElementById('totalActivity').textContent = totalActivity.toLocaleString();
+            document.getElementById('livePackages').textContent = totalActivity.toLocaleString(); 
+            document.getElementById('replayPackages').textContent = '0';
+            document.getElementById('cacheSize').textContent = `${packageCache.length}/${MAX_CACHE}`;
+            document.getElementById('sourceIp').textContent = getRandomIPv4(); // Update dynamically
+            
+            if (lastPackageTime) {
+                const timeSince = Date.now() - lastPackageTime;
+                if (timeSince < 60000) {
+                    document.getElementById('lastPackage').textContent = `${Math.floor(timeSince / 1000)}s ago`;
+                } else if (timeSince < 3600000) {
+                    document.getElementById('lastPackage').textContent = `${Math.floor(timeSince / 60000)}m ago`;
+                } else {
+                    document.getElementById('lastPackage').textContent = `${Math.floor(timeSince / 3600000)}h ago`;
+                }
+            }
+        }
+
+        function parseAndDisplayStats(content) {
+            // Check for and update agent statuses based on content
+            if (content.startsWith("NET |")) {
+                updateAgentStatus("netStatus");
+            } else if (content.startsWith("PING |")) {
+                updateAgentStatus("pingStatus");
+            } else if (content.startsWith("NTP |")) {
+                updateAgentStatus("ntpStatus");
+            } else if (content.startsWith("SYS |")) {
+                const parts = content.split(' ');
+                const cpuUsage = parts.find(p => p.startsWith('cpu=')).split('=')[1];
+                const gpuTemp = parts.find(p => p.startsWith('gpu=')).split('=')[1];
+                const ramUsage = parts.find(p => p.startsWith('ram=')).split('=')[1];
+                const ioUsage = parts.find(p => p.startsWith('io=')).split('=')[1];
+
+                document.getElementById('cpuUsage').textContent = cpuUsage;
+                document.getElementById('gpuTemp').textContent = gpuTemp;
+                document.getElementById('ramUsage').textContent = ramUsage;
+                document.getElementById('ioUsage').textContent = ioUsage;
+            }
+        }
+
+        function updateAgentStatus(agentId) {
+            const el = document.getElementById(agentId);
+            if (!el) return;
+
+            // Set to ACTIVE
+            el.textContent = "ACTIVE";
+            el.style.color = "var(--success)";
+
+            // Clear any existing timeout for this agent
+            if (agentTimeouts[agentId]) {
+                clearTimeout(agentTimeouts[agentId]);
+            }
+
+            // Set a new timeout to go back to IDLE after 5 seconds
+            agentTimeouts[agentId] = setTimeout(() => {
+                el.textContent = "IDLE";
+                el.style.color = "var(--warning)";
+            }, 5000);
+        }
+
+        function addPackage(content, type) {
+            // A unified publisher function for all packages
+            if (paused) return;
+
+            // Parse and display stats from the package content
+            parseAndDisplayStats(content);
+
+            // Clear initial waiting message
+            if (packageStream.querySelector('.waiting-message')) {
+                packageStream.innerHTML = '';
+            }
+            
+            // Generate metadata
+            const stampedContent = `${sigil()} | ${content}`;
+            const sourceIp = getRandomIPv4();
+            
+            // Update cache and trim if full
+            packageCache.push(stampedContent);
+            if (packageCache.length > MAX_CACHE) {
+                packageCache.shift();
+            }
+
+            // Create and append package element
+            const packageEl = document.createElement('div');
+            packageEl.className = `package ${type}`;
+            packageEl.innerHTML = `
+                <div class="package-header">
+                    <span class="timestamp">${new Date().toISOString().slice(11, 23)}</span>
+                    <span class="package-type">${type.toUpperCase()}</span>
+                </div>
+                <div class="package-content">${stampedContent}</div>
+                <div class="package-footer">
+                    <span class="package-ip">Source: ${sourceIp}</span>
+                    <span class="package-ip">Destination: ${DESTINATION_IP}</span>
+                </div>
+            `;
+            
+            packageStream.prepend(packageEl);
+            
+            // Keep stream length manageable
+            while (packageStream.children.length > 50) {
+                packageStream.removeChild(packageStream.lastChild);
+            }
+            
+            totalActivity++;
+            lastPackageTime = Date.now();
+            updateStats();
+        }
+
+        function addPingLogEntry(log) {
+            if (paused) return;
+
+            // Clear initial waiting message
+            if (pingLogEl.querySelector('.waiting-message')) {
+                pingLogEl.innerHTML = '';
+            }
+
+            // Add new log to buffer and trim if necessary
+            pingLogBuffer.unshift(log);
+            if (pingLogBuffer.length > LOG_WINDOW_SIZE) {
+                pingLogBuffer.pop();
+            }
+
+            // Render the buffer to the DOM
+            pingLogEl.innerHTML = pingLogBuffer.map(entry => {
+                return `<div class="log-entry">${entry}</div>`;
+            }).join('');
+        }
+
+        // --- Producers ---
+        function produceNet() {
+            // Simulate network traffic
+            const rxBytes = Math.floor(Math.random() * 1000) + 100;
+            const txBytes = Math.floor(Math.random() * 500) + 50;
+            const drx = Math.max(0, rxBytes - prevNetRx);
+            const dtx = Math.max(0, txBytes - prevNetTx);
+            if (drx > 0 || dtx > 0) {
+                addPackage(`NET | iface=eth0 rx=${drx}B tx=${dtx}B total_rx=${rxBytes}B total_tx=${txBytes}B`, 'live');
+            }
+            prevNetRx = rxBytes;
+            prevNetTx = txBytes;
+        }
+
+        function produceNTP() {
+            // Simulate NTP sync check with some random drift
+            const drift = (Math.random() * 2 - 1).toFixed(3); // -1 to 1 ms
+            const status = Math.random() < 0.95 ? "SYNCED" : "UNSYNCED";
+            addPackage(`NTP | server=pool.ntp.org status=${status} drift=${drift}ms`, 'live');
+        }
+
+        function producePing() {
+            // Simulate a ping check and add to both streams
+            const latency = Math.floor(Math.random() * 20) + 5; // 5-25ms
+            const logEntry = `[${new Date().toISOString().slice(11, 23)}] PING to 1.1.1.1: latency=${latency}ms status=OK`;
+            addPingLogEntry(logEntry);
+            addPackage(`PING | host=1.1.1.1 status=OK latency=${latency}ms`, 'live');
+        }
+
+        function produceSystemStats() {
+            // Simulate system resource usage
+            const cpu = (Math.random() * 50 + 10).toFixed(1) + "%"; // 10-60%
+            const gpu = (Math.random() * 20 + 40).toFixed(1) + "°C"; // 40-60°C
+            const ram = (Math.random() * 30 + 30).toFixed(1) + "%"; // 30-60%
+            const io = (Math.random() * 15).toFixed(1) + "%"; // 0-15%
+            addPackage(`SYS | agent=lifestats cpu=${cpu} gpu=${gpu} ram=${ram} io=${io}`, 'live');
+        }
+
+        function heartbeat() {
+            // Simulate system heartbeat
+            addPackage("HEARTBEAT | agent=RFI-IRFOS v2.1 Unified Mirror", 'live');
+        }
+
+        // --- UI Control Functions ---
+        function sendMessage() {
+            // User-initiated package
+            const message = messageInput.value.trim();
+            if (message) {
+                addPackage(message, 'live');
+                messageInput.value = '';
+            }
+        }
+        
+        function clearStream() {
+            // Clear the stream log
+            packageStream.innerHTML = '';
+            pingLogEl.innerHTML = '';
+            totalActivity = 0;
+            packageCache = [];
+            pingLogBuffer = [];
+            updateStats();
+        }
+
+        function togglePause() {
+            // Pause/resume the data stream
+            paused = !paused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = paused ? 'RESUME' : 'PAUSE';
+            btn.className = paused ? 'btn active' : 'btn';
+        }
+
+        function refresh() {
+            // Reload the page to reset the entire application state.
+            window.location.reload();
+        }
+
+        function sync() {
+            // Force an immediate run of all producer functions.
+            produceNet();
+            produceNTP();
+            producePing();
+            produceSystemStats();
+            heartbeat();
+        }
+
+        function copyMarkdown() {
+            const now = new Date().toISOString();
+            const markdownContent = `### RFI-IRFOS Unified Mirror Session Log\n\n**Session Timestamp:** \`${now}\`\n\n---\n\n#### Package Stream (Last ${packageCache.length} Packages)\n\n\`\`\`text\n${packageCache.join('\n')}\n\`\`\`\n\n#### ping_monitor.log (Last ${pingLogBuffer.length} Entries)\n\n\`\`\`text\n${pingLogBuffer.join('\n')}\n\`\`\`\n`;
+
+            navigator.clipboard.writeText(markdownContent).then(() => {
+                // You can add a visual confirmation if needed
+                console.log("Session data copied to clipboard!");
+            }).catch(err => {
+                console.error("Failed to copy session data:", err);
+            });
+        }
+        
+        // --- Main Execution ---
+        window.onload = () => {
+            // Start the production loops
+            setInterval(produceNet, NET_SAMPLE_SEC * 1000);
+            setInterval(produceNTP, NTP_SAMPLE_SEC * 1000);
+            setInterval(producePing, PING_INTERVAL_SEC * 1000);
+            setInterval(produceSystemStats, STATS_SAMPLE_SEC * 1000);
+            setInterval(heartbeat, HEARTBEAT_INTERVAL_SEC * 1000);
+            
+            // Update uptime counter
+            let startTime = Date.now();
+            setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const hours = Math.floor(elapsed / 3600000);
+                const minutes = Math.floor((elapsed % 3600000) / 60000);
+                const seconds = Math.floor((elapsed % 60000) / 1000);
+                document.getElementById('uptime').textContent = 
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }, 1000);
+
+            // Animate symbols with a standing wave effect
+            symbols.forEach((symbol, index) => {
+                const baseDuration = 5; // seconds
+                const delayStep = 0.2; // seconds
+                symbol.style.animationName = 'standing-wave';
+                symbol.style.animationDuration = `${baseDuration}s`;
+                symbol.style.animationDelay = `${index * delayStep}s`;
+                symbol.style.animationIterationCount = 'infinite';
+                symbol.style.animationTimingFunction = 'ease-in-out';
+            });
+            
+            updateStats();
+        };
+    </script>
+</body>
+</html>
+
