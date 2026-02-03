@@ -1,62 +1,109 @@
-RFI-IRFOS // QR-Forge (Binary State)
+# RFI-IRFOS // **QR-FORGE**
 
-Status: Active // Version: 1.0.0 // License: MIT
+**Version:** 1.0.1
+**State:** Stable
+**Origin:** RFI-IRFOS (Graz, Austria)
 
-"Legibility is not a suggestion; it is an ontological requirement." — RFI Directive
+---
 
-Overview
+## ⚠️ The Problem
 
-QR-Forge is a neurosymbolic artifact generation tool developed by the Research Focus Institute (RFI-IRFOS). Unlike standard generators that treat typography as a static afterthought, QR-Forge utilizes a dynamic scaling algorithm that binds font size to the matrix density. This ensures that the human-readable anchor (the text) remains ontologically distinct and legible regardless of the resolution or "box size" of the QR code.
+Most QR generators commit the **static-integer fallacy**:
 
-The system operates in two binary states—Photonic (Light) and Void (Dark)—allowing for seamless integration into diverse aesthetic ecosystems without compromising scan redundancy.
+They pick a fixed font size (e.g., *20px*) and call it a day — **regardless of QR matrix density**.
 
-Core Capabilities
+So when you scale the QR for print or high-res displays, the code grows… but the caption stays microscopic.
+Result: the “human-readable anchor” becomes decorative noise, and your visual hierarchy collapses.
 
-Binary State Collapse: User-defined input triggers a phase shift between Dark Mode (White Data/Black Void) and Light Mode (Black Data/White Void).
+---
 
-Dynamic Scaling Logic: Font size is calculated as a fixed percentage (8%) of the total matrix width, eliminating "tiny text" errors on high-resolution renders.
+## 🛠️ The Solution
 
-System Font Hunter: The script autonomously scans the host OS (Windows, MacOS, Linux) for valid fixed-width or sans-serif .ttf files, preventing the degradation of the visual output to default bitmap fonts.
+**QR-Forge rejects static values.**
 
-High Redundancy: Default configuration uses Level H (30%) error correction to maintain functional integrity even in damaged environments.
+It enforces **ratio-based typography**.
 
-Installation
+Font size is dynamically computed as a function of the matrix width:
 
-Clone the Repository
+> **Font = Width × 0.08**
 
-git clone [https://github.com/RFI-IRFOS/qr-forge.git](https://github.com/RFI-IRFOS/qr-forge.git)
-cd qr-forge
+Meaning: your label maintains **ontological prominence** no matter the output resolution.
 
+---
 
-Install Dependencies
-We rely on pillow for the canvas manipulation and qrcode for the matrix logic.
+##  Capabilities
 
+###  Phase-Shift Protocol
+
+Native support for:
+
+* **Void (Dark)** state
+* **Photonic (Light)** state
+
+User input determines the **binary collapse** of the output.
+
+###  System Agnostic
+
+The script autonomously hunts for valid **fixed-width / sans-serif `.ttf` binaries** on the host OS:
+
+* Windows
+* Linux
+* Darwin
+
+No more illegible PIL raster defaults.
+
+###  H-Level Redundancy
+
+Hardcoded to **ERROR_CORRECT_H (30%)**.
+We sacrifice density for durability — because reality is hostile.
+
+### 🧠 Neurosymbolic Alignment
+
+Text is mathematically centered using **bounding-box calculations**.
+No vibes. No guessed offsets. Pure geometry.
+
+---
+
+##  Deployment
+
+### 1) Dependencies
+
+```bash
 pip install -r requirements.txt
+```
 
+### 2) Execution
 
-Usage Protocol
+Run the forge. The system will interrogate you for the desired state.
 
-Execute the forge via the terminal. The system will request a state selection before collapsing the wavefunction.
-
+```bash
 python qr_forge.py
+```
 
+### 3) Inputs
 
-Interaction Flow:
+**Prompt:** `Select Mode [D]ark or [L]ight`
 
-Initiate: Script launches.
+**Triggers:**
 
-Select State: Enter D (Dark) or L (Light).
+* `D`, `d`, `Dark`, `Void` → **Dark Mode** *(Black background, white data)*
+* `L`, `l`, `Light` → **Light Mode** *(White background, black data)*
 
-Process: The system locates a valid font, generates the matrix, and fuses the layers.
+---
 
-Artifact: Output saved as rfi_qr_final.png.
+##  Configuration
 
-Configuration
+Edit `qr_forge.py` and set your target anchor:
 
-Target variables are located in the CONFIGURATION block of qr_forge.py:
+```python
+LINK = "https://hast-du-zeit.at/"
+TEXT = "RFI-IRFOS // 2026"
+```
 
-LINK = "[https://hast-du-zeit.at/](https://hast-du-zeit.at/)"   # Target URL
-TEXT = "RFI-IRFOS // 2026"           # Human-Readable Anchor
+---
 
+##  Signature
 
-Developed by RFI-IRFOS (Graz, Austria). We build the tools that others forgot to engineer.
+Built by the **Research Focus Institute (RFI-IRFOS)**.
+
+> We fix what the industry ignores.
