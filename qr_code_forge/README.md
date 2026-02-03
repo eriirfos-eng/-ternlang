@@ -6,14 +6,30 @@
 
 ---
 
-## ⚠️ The Problem
+## 🧨 Why this exists (a.k.a. The Pain)
+
+Generating a QR code in 2026 should be a 10-second task.
+
+Instead, most “free” QR tools drag you through:
+
+* endless onboarding flows
+* cookie banners & consent gymnastics
+* account creation rituals
+* *paywalls waiting behind the download button*
+
+We needed a QR code **fast**, **clean**, and **offline**.
+So we built it ourselves.
+
+---
+
+## ⚠️ The Problem (the technical one)
 
 Most QR generators commit the **static-integer fallacy**:
 
-They pick a fixed font size (e.g., *20px*) and call it a day — **regardless of QR matrix density**.
+They pick a fixed font size (e.g., *20px*) and apply it regardless of matrix density.
 
-So when you scale the QR for print or high-res displays, the code grows… but the caption stays microscopic.
-Result: the “human-readable anchor” becomes decorative noise, and your visual hierarchy collapses.
+So when you scale the QR for print/high-res display, the QR grows… but the caption stays microscopic.
+Result: the “human-readable anchor” becomes decorative noise and the visual hierarchy collapses.
 
 ---
 
@@ -31,9 +47,14 @@ Meaning: your label maintains **ontological prominence** no matter the output re
 
 ---
 
-##  Capabilities
+## ✨ Capabilities
 
-###  Phase-Shift Protocol
+### 📴 Offline-First by Design
+
+No trackers. No logins. No cloud. No surprises.
+Just a script that generates your QR and gets out of the way.
+
+### 🌓 Phase-Shift Protocol
 
 Native support for:
 
@@ -42,7 +63,7 @@ Native support for:
 
 User input determines the **binary collapse** of the output.
 
-###  System Agnostic
+### 🧬 System Agnostic
 
 The script autonomously hunts for valid **fixed-width / sans-serif `.ttf` binaries** on the host OS:
 
@@ -52,7 +73,7 @@ The script autonomously hunts for valid **fixed-width / sans-serif `.ttf` binari
 
 No more illegible PIL raster defaults.
 
-###  H-Level Redundancy
+### 🛡️ H-Level Redundancy
 
 Hardcoded to **ERROR_CORRECT_H (30%)**.
 We sacrifice density for durability — because reality is hostile.
@@ -64,7 +85,7 @@ No vibes. No guessed offsets. Pure geometry.
 
 ---
 
-##  Deployment
+## 🚀 Deployment
 
 ### 1) Dependencies
 
@@ -91,7 +112,7 @@ python qr_forge.py
 
 ---
 
-##  Configuration
+## ⚙️ Configuration
 
 Edit `qr_forge.py` and set your target anchor:
 
@@ -102,8 +123,8 @@ TEXT = "RFI-IRFOS // 2026"
 
 ---
 
-##  Signature
+## 🏁 Signature
 
 Built by the **Research Focus Institute (RFI-IRFOS)**.
 
-> We fix what the industry ignores.
+> We fix what the industry ignores — and what the internet tries to monetize for no reason.
